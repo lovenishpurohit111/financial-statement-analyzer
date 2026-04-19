@@ -50,7 +50,13 @@ export default function BreakdownTable({ results }) {
   const pl = results?.analysis?.type === 'pl' ? results.analysis : results?.pl_analysis;
   const bs = results?.analysis?.type === 'bs' ? results.analysis : results?.bs_current;
 
-  const plBreakdown = pl?.breakdown;
+  // BUG FIX: guard against missing breakdown sections
+  const rawPlBreakdown = pl?.breakdown;
+  const plBreakdown = rawPlBreakdown && (
+    (rawPlBreakdown.income?.length > 0) ||
+    (rawPlBreakdown.cogs?.length > 0) ||
+    (rawPlBreakdown.operating_expenses?.length > 0)
+  ) ? rawPlBreakdown : null;
   const bsBreakdown = bs?.breakdown;
 
   const allValues = plBreakdown

@@ -198,8 +198,9 @@ function RatioRadar({ pl, bs }) {
 }
 
 export default function ChartsPanel({ results }) {
-  const pl  = results?.analysis || results?.pl_analysis;
-  const bs  = results?.analysis?.type === 'bs' ? results.analysis : results?.bs_current;
+  // BUG FIX: type-check before assigning to avoid P&L data being treated as BS
+  const pl  = results?.pl_analysis || (results?.analysis?.type === 'pl' ? results.analysis : null);
+  const bs  = results?.bs_current  || (results?.analysis?.type === 'bs' ? results.analysis : null);
   const cf  = results?.cash_flow;
 
   return (

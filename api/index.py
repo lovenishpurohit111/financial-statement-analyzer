@@ -520,8 +520,10 @@ def estimate_tax(net_profit, country, entity_type, deductions=None):
             # 2. Standard deduction
             std_ded = rule.get('standard_deduction', 14600)
             if filing == 'married': std_ded = 29200  # MFJ 2024
-            taxable_income -= std_ded
-            deduction_log.append({'item':f'Standard Deduction ({filing.title()})','amount':std_ded,'note':f'2024 IRS standard deduction: ${std_ded:,}.'})
+            actual_std = min(std_ded, max(taxable_income, 0))  # can't deduct more than income
+            if actual_std > 0:
+                taxable_income -= actual_std
+                deduction_log.append({'item':f'Standard Deduction ({filing.title()})','amount':actual_std,'note':f'2024 IRS standard deduction: ${std_ded:,} (applied ${actual_std:,.0f} — limited to taxable income).'})
 
             # 3. Health insurance premiums (self-employed)
             hi = float(deductions.get('health_insurance', 0) or 0)
@@ -751,10 +753,16 @@ def parse_pl_monthly(contents, filename):
 
         label_l = label.lower()
 
-        # Detect section
+        # Detect section — use startswith/contains for robustness with QB headers
         if _is_sub(label_l): continue
-        if re.search(r'^(income|revenue|sales)$', label_l.strip()): current_section = 'income'; continue
-        if re.search(r'^expenses?$', label_l.strip()): current_section = 'expenses'; continue
+        stripped = label_l.strip()
+        if stripped in ('income', 'revenue', 'sales') or re.match(r'^(income|revenue|sales)\b', stripped):
+            current_section = 'income'; continue
+        if stripped == 'expenses' or re.match(r'^expenses?\b', stripped):
+            current_section = 'expenses'; continue
+        # QB sometimes has "Cost of Goods Sold" as a section header
+        if any(k in stripped for k in ['cost of goods', 'cogs', 'cost of sales']):
+            if row_vals and all(v == 0 for v in row_vals): current_section = 'cogs'; continue
 
         # Get monthly values for this row
         row_vals = []
@@ -767,17 +775,17 @@ def parse_pl_monthly(contents, filename):
 
         if all(v == 0 for v in row_vals): continue
 
-        # Classify by section
+        # Classify by section — current_section takes priority, then label keywords
         if current_section == 'income':
             revenue = [r + v for r, v in zip(revenue, row_vals)]
-        elif current_section == 'expenses':
+        elif current_section in ('expenses', 'cogs'):
             expenses = [e + v for e, v in zip(expenses, row_vals)]
         else:
-            # Auto-classify from label
+            # Auto-classify from label keywords as last resort
             sec = _pl_sec(label_l)
-            if sec in ('income', 'cogs', 'other_income'):
+            if sec in ('income', 'other_income'):
                 revenue = [r + v for r, v in zip(revenue, row_vals)]
-            elif sec in ('operating_expenses', 'other_expenses'):
+            elif sec in ('cogs', 'operating_expenses', 'other_expenses'):
                 expenses = [e + v for e, v in zip(expenses, row_vals)]
 
     profit = [round(r - e, 2) for r, e in zip(revenue, expenses)]
@@ -797,7 +805,7 @@ def detect_anomalies(series, labels, metric_name, threshold=1.8):
     arr = np.array([v for v in series], dtype=float)
     if len(arr) < 4: return []
     mean, std = arr.mean(), arr.std()
-    if std < 1: return []
+    if std < 0.01: return []  # all values nearly identical — no meaningful anomalies
     z = np.abs((arr - mean) / std)
     anomalies = []
     for i in range(len(arr)):
@@ -884,19 +892,16 @@ def predict_profit(series, labels):
     }
 
 def _next_period_label(last_label):
-    """Infer next period label from last label like 'Dec 2025' -> 'Jan 2026'."""
-    month_map = {'jan':('Feb',1),'feb':('Mar',2),'mar':('Apr',3),'apr':('May',4),
-                 'may':('Jun',5),'jun':('Jul',6),'jul':('Aug',7),'aug':('Sep',8),
-                 'sep':('Oct',9),'oct':('Nov',10),'nov':('Dec',11),'dec':('Jan',12)}
-    m = re.search(r'(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)', last_label.lower())
+    """Infer next period label. 'Dec 2025' -> 'Jan 2026', 'Mar 2025' -> 'Apr 2025'."""
+    MONTHS = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec']
+    LABELS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+    m  = re.search(r'(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)', last_label.lower())
     yr = re.search(r'(\d{4})', last_label)
     if m and yr:
-        abbr = m.group(1)
-        year = int(yr.group(1))
-        next_name, next_num = month_map.get(abbr, ('Next', 0))
-        if next_num == 12:  # was december (returned as Jan), so next num is 12 meaning dec was last
-            year += 1       # actually dec->jan crosses year
-        return f"{next_name} {year}"
+        idx  = MONTHS.index(m.group(1))          # 0-based index of current month
+        next_idx  = (idx + 1) % 12               # wrap Dec(11) -> Jan(0)
+        next_year = int(yr.group(1)) + (1 if idx == 11 else 0)  # increment only after December
+        return f"{LABELS[next_idx]} {next_year}"
     return "Next Period"
 
 # ── ROUTES ────────────────────────────────────────────────────────────────────

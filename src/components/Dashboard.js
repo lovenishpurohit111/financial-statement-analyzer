@@ -164,6 +164,7 @@ export default function Dashboard({ results, onReset }) {
       {/* Tab Bar */}
       <div className="flex gap-2 mb-6 fade-up-1">
         {TABS.map(tab => {
+          // BUG FIX: show tax tab whenever a tax object exists (even locked state)
           if (tab.id === 'tax' && !tax) return null;
           return (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
@@ -195,7 +196,15 @@ export default function Dashboard({ results, onReset }) {
       )}
 
       {activeTab === 'insights' && (
-        <InsightsPanel insights={insights} />
+        insights.length > 0
+          ? <InsightsPanel insights={insights} />
+          : (
+            <div className="glass p-10 text-center">
+              <div style={{fontSize:48,marginBottom:12}}>💡</div>
+              <p className="text-slate-400 font-semibold">No insights generated yet</p>
+              <p className="text-slate-600 text-sm mt-2">Try running a Full Analysis (P&L + Balance Sheet) for comprehensive insights.</p>
+            </div>
+          )
       )}
 
       {activeTab === 'breakdown' && (

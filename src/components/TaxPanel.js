@@ -43,7 +43,8 @@ export default function TaxPanel({ tax }) {
     );
   }
 
-  const afterTax = (tax.taxable_income ?? tax.net_profit ?? 0) - (tax.tax ?? 0);
+  // BUG FIX: after-tax profit = original gross profit minus total tax owed
+  const afterTax = (tax.gross_profit ?? tax.net_profit ?? 0) - (tax.tax ?? 0);
   const brackets = tax.bracket_breakdown || [];
   const dedLog   = tax.deduction_breakdown || [];
 
