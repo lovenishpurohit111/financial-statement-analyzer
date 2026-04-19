@@ -696,6 +696,209 @@ def estimate_tax(net_profit, country, entity_type, deductions=None):
         'disclaimer': DISCLAIMER,
     }
 
+# ── MULTI-COLUMN MONTHLY P&L PARSER ─────────────────────────────────────────
+def parse_pl_monthly(contents, filename):
+    """
+    Parse a QuickBooks monthly P&L (columns = months).
+    Returns: {months: [...], revenue: [...], expenses: [...], profit: [...], period: str}
+    """
+    if filename.lower().endswith('.csv'):
+        df = pd.read_csv(io.BytesIO(contents), header=None, dtype=str, encoding='utf-8-sig')
+    else:
+        df = pd.read_excel(io.BytesIO(contents), header=None, dtype=str)
+
+    # Find the header row with month names
+    month_row_idx = None
+    month_cols = []
+    month_labels = []
+
+    for ri, row in df.iterrows():
+        row_vals = [str(v).strip() for v in row]
+        # Detect month names (Jan, Feb, Mar, etc.)
+        month_hits = []
+        for ci, v in enumerate(row_vals):
+            if re.search(r'\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b', v.lower()):
+                month_hits.append((ci, v))
+        if len(month_hits) >= 3:
+            month_row_idx = ri
+            month_cols = [ci for ci, _ in month_hits]
+            # Exclude 'Total' columns
+            month_cols = [ci for ci, v in month_hits if 'total' not in v.lower()]
+            month_labels = [v for ci, v in month_hits if 'total' not in v.lower()]
+            break
+
+    if month_row_idx is None or not month_cols:
+        return None  # Not a multi-column monthly P&L
+
+    # Extract period from early rows
+    period = None
+    for ri in range(min(5, len(df))):
+        for v in df.iloc[ri]:
+            if isinstance(v, str) and re.search(r'\d{4}', v) and re.search(r'(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|january|february|march)', v.lower()):
+                period = v.strip()
+                break
+
+    n_months = len(month_cols)
+    revenue  = [0.0] * n_months
+    expenses = [0.0] * n_months
+    current_section = None
+
+    for ri in range(month_row_idx + 1, len(df)):
+        row = df.iloc[ri]
+        label_raw = str(row.iloc[0]) if not pd.isna(row.iloc[0]) else ''
+        label = label_raw.strip()
+        if not label or label.lower() in ('nan','none',''): continue
+
+        label_l = label.lower()
+
+        # Detect section
+        if _is_sub(label_l): continue
+        if re.search(r'^(income|revenue|sales)$', label_l.strip()): current_section = 'income'; continue
+        if re.search(r'^expenses?$', label_l.strip()): current_section = 'expenses'; continue
+
+        # Get monthly values for this row
+        row_vals = []
+        for ci in month_cols:
+            if ci < len(row):
+                v = _val(row.iloc[ci])
+                row_vals.append(v if v is not None else 0.0)
+            else:
+                row_vals.append(0.0)
+
+        if all(v == 0 for v in row_vals): continue
+
+        # Classify by section
+        if current_section == 'income':
+            revenue = [r + v for r, v in zip(revenue, row_vals)]
+        elif current_section == 'expenses':
+            expenses = [e + v for e, v in zip(expenses, row_vals)]
+        else:
+            # Auto-classify from label
+            sec = _pl_sec(label_l)
+            if sec in ('income', 'cogs', 'other_income'):
+                revenue = [r + v for r, v in zip(revenue, row_vals)]
+            elif sec in ('operating_expenses', 'other_expenses'):
+                expenses = [e + v for e, v in zip(expenses, row_vals)]
+
+    profit = [round(r - e, 2) for r, e in zip(revenue, expenses)]
+
+    return {
+        'type': 'pl_monthly',
+        'months': month_labels,
+        'revenue': [round(v, 2) for v in revenue],
+        'expenses': [round(v, 2) for v in expenses],
+        'profit': profit,
+        'period': period or 'N/A',
+    }
+
+# ── ANOMALY DETECTION ─────────────────────────────────────────────────────────
+def detect_anomalies(series, labels, metric_name, threshold=1.8):
+    """Z-score anomaly detection. Returns list of anomaly dicts."""
+    arr = np.array([v for v in series], dtype=float)
+    if len(arr) < 4: return []
+    mean, std = arr.mean(), arr.std()
+    if std < 1: return []
+    z = np.abs((arr - mean) / std)
+    anomalies = []
+    for i in range(len(arr)):
+        if z[i] >= threshold:
+            direction = 'spike' if arr[i] > mean else 'drop'
+            severity  = 'high' if z[i] >= 2.5 else 'medium'
+            pct_diff  = abs(arr[i] - mean) / mean * 100 if mean != 0 else 0
+            anomalies.append({
+                'month':     labels[i],
+                'metric':    metric_name,
+                'value':     round(float(arr[i]), 2),
+                'average':   round(float(mean), 2),
+                'z_score':   round(float(z[i]), 2),
+                'direction': direction,
+                'severity':  severity,
+                'pct_from_avg': round(pct_diff, 1),
+                'message':   f"⚠️ {metric_name} {direction} in {labels[i]}: "
+                             f"${arr[i]:,.0f} vs avg ${mean:,.0f} "
+                             f"({pct_diff:.0f}% {'above' if direction=='spike' else 'below'} average, "
+                             f"Z={z[i]:.2f})",
+            })
+    return anomalies
+
+# ── PROFIT PREDICTION ─────────────────────────────────────────────────────────
+def predict_profit(series, labels):
+    """
+    Predict next period profit using:
+    - Linear regression (trend line)
+    - 3-month moving average
+    Blended 60/40. Returns prediction + confidence interval.
+    """
+    y = np.array([v for v in series if v is not None], dtype=float)
+    n = len(y)
+    if n < 3:
+        return {'predicted': None, 'message': 'Need at least 3 months of data.'}
+
+    x = np.arange(n, dtype=float)
+    # Linear regression via numpy
+    coeffs = np.polyfit(x, y, 1)
+    slope, intercept = float(coeffs[0]), float(coeffs[1])
+    lr_pred = slope * n + intercept
+
+    # 3-month MA
+    ma3_pred = float(y[-3:].mean())
+
+    # 6-month MA (if available)
+    ma6_pred = float(y[-min(6, n):].mean())
+
+    # Blended forecast: 50% linear, 30% MA3, 20% MA6
+    blended = 0.50 * lr_pred + 0.30 * ma3_pred + 0.20 * ma6_pred
+
+    # Confidence interval: ±1.5 std of residuals from linear trend
+    fitted   = slope * x + intercept
+    residuals = y - fitted
+    std_err  = float(residuals.std()) if len(residuals) > 1 else abs(blended * 0.15)
+    ci_low   = blended - 1.96 * std_err
+    ci_high  = blended + 1.96 * std_err
+
+    # Trend description
+    trend_pct = slope / abs(y.mean()) * 100 if y.mean() != 0 else 0
+    if slope > 0: trend_str = f"upward trend (+${slope:,.0f}/month)"
+    elif slope < 0: trend_str = f"downward trend (-${abs(slope):,.0f}/month)"
+    else: trend_str = "flat trend"
+
+    next_label = _next_period_label(labels[-1]) if labels else "Next Period"
+
+    return {
+        'predicted':         round(blended, 2),
+        'confidence_low':    round(ci_low, 2),
+        'confidence_high':   round(ci_high, 2),
+        'linear_prediction': round(lr_pred, 2),
+        'ma3_prediction':    round(ma3_pred, 2),
+        'ma6_prediction':    round(ma6_pred, 2),
+        'trend_slope':       round(slope, 2),
+        'trend_description': trend_str,
+        'next_period_label': next_label,
+        'confidence_pct':    95,
+        'months_used':       n,
+        'message': (
+            f"Predicted profit for {next_label}: ${blended:,.0f} "
+            f"(95% CI: ${ci_low:,.0f} – ${ci_high:,.0f}). "
+            f"Based on {trend_str} over {n} months."
+        ),
+    }
+
+def _next_period_label(last_label):
+    """Infer next period label from last label like 'Dec 2025' -> 'Jan 2026'."""
+    month_map = {'jan':('Feb',1),'feb':('Mar',2),'mar':('Apr',3),'apr':('May',4),
+                 'may':('Jun',5),'jun':('Jul',6),'jul':('Aug',7),'aug':('Sep',8),
+                 'sep':('Oct',9),'oct':('Nov',10),'nov':('Dec',11),'dec':('Jan',12)}
+    m = re.search(r'(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)', last_label.lower())
+    yr = re.search(r'(\d{4})', last_label)
+    if m and yr:
+        abbr = m.group(1)
+        year = int(yr.group(1))
+        next_name, next_num = month_map.get(abbr, ('Next', 0))
+        if next_num == 12:  # was december (returned as Jan), so next num is 12 meaning dec was last
+            year += 1       # actually dec->jan crosses year
+        return f"{next_name} {year}"
+    return "Next Period"
+
 # ── ROUTES ────────────────────────────────────────────────────────────────────
 @app.post("/api/upload")
 async def upload(file: UploadFile = File(...)):
@@ -773,6 +976,71 @@ def route_full(req: FullReq):
                              "notes":"Estimated via indirect method. Investing CF approximated."},
                 "balance_sheet_comparison":comp,"health_score":hs,"insights":all_ins,"tax":tax}
     except Exception as e: raise HTTPException(500, str(e))
+
+
+@app.post("/api/analyze/monthly")
+async def analyze_monthly(file: UploadFile = File(...)):
+    """Upload a multi-column monthly QB P&L → anomaly detection + prediction."""
+    if not file.filename.lower().endswith(('.csv','.xlsx','.xls')):
+        raise HTTPException(400, "Only CSV or Excel files are supported.")
+    contents = await file.read()
+    try:
+        result = parse_pl_monthly(contents, file.filename)
+        if result is None:
+            raise HTTPException(422, "Could not detect monthly column structure. Ensure file has month columns (Jan, Feb, ...).")
+        months   = result['months']
+        revenue  = result['revenue']
+        expenses = result['expenses']
+        profit   = result['profit']
+
+        # Only analyze months with data
+        has_data = [i for i in range(len(months)) if revenue[i] > 0 or expenses[i] > 0]
+        active_m = [months[i]   for i in has_data]
+        active_r = [revenue[i]  for i in has_data]
+        active_e = [expenses[i] for i in has_data]
+        active_p = [profit[i]   for i in has_data]
+
+        anomalies = (
+            detect_anomalies(active_r, active_m, "Revenue",  threshold=1.8) +
+            detect_anomalies(active_e, active_m, "Expenses", threshold=1.8) +
+            detect_anomalies(active_p, active_m, "Profit",   threshold=1.8)
+        )
+        anomalies.sort(key=lambda x: x['z_score'], reverse=True)
+
+        prediction = predict_profit(active_p, active_m) if len(active_p) >= 3 else {'predicted': None, 'message': 'Insufficient data.'}
+
+        # Monthly summary stats
+        avg_rev  = round(sum(active_r)/len(active_r), 2) if active_r else 0
+        avg_exp  = round(sum(active_e)/len(active_e), 2) if active_e else 0
+        avg_prof = round(sum(active_p)/len(active_p), 2) if active_p else 0
+        best_m   = active_m[active_p.index(max(active_p))] if active_p else 'N/A'
+        worst_m  = active_m[active_p.index(min(active_p))] if active_p else 'N/A'
+
+        return {
+            'period':    result['period'],
+            'months':    months,
+            'revenue':   revenue,
+            'expenses':  expenses,
+            'profit':    profit,
+            'active_months': len(active_m),
+            'summary': {
+                'total_revenue':  round(sum(active_r), 2),
+                'total_expenses': round(sum(active_e), 2),
+                'total_profit':   round(sum(active_p), 2),
+                'avg_monthly_revenue':  avg_rev,
+                'avg_monthly_expenses': avg_exp,
+                'avg_monthly_profit':   avg_prof,
+                'best_month':   best_m,
+                'worst_month':  worst_m,
+                'profit_margin': round(sum(active_p)/sum(active_r)*100, 2) if sum(active_r) else 0,
+            },
+            'anomalies':  anomalies,
+            'prediction': prediction,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, f"Monthly analysis failed: {str(e)}")
 
 @app.get("/api/health")
 def health(): return {"status":"ok"}

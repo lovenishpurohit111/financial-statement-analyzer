@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import axios from 'axios';
 import API from '../config';
 import DeductionsPanel from './DeductionsPanel';
+import MonthlyDashboard from './MonthlyDashboard';
 
 const ENTITY_OPTIONS = [
   { value: '', label: 'Not Specified (skip tax)' },
@@ -98,12 +99,80 @@ function FileSlot({ label, description, accept, onParsed, slotKey, parsed }) {
   );
 }
 
+
+function MonthlyFileSlot({ onMonthlyData }) {
+  const [dragging, setDragging] = React.useState(false);
+  const [loading, setLoading]   = React.useState(false);
+  const [error, setError]       = React.useState(null);
+  const [done, setDone]         = React.useState(false);
+  const inputRef = React.useRef();
+
+  const upload = async (file) => {
+    setLoading(true); setError(null); setDone(false);
+    const form = new FormData();
+    form.append('file', file);
+    try {
+      const res = await axios.post(`${API}/analyze/monthly`, form);
+      onMonthlyData(res.data);
+      setDone(true);
+    } catch (e) {
+      setError(e.response?.data?.detail || 'Monthly analysis failed.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault(); setDragging(false);
+    const f = e.dataTransfer.files[0];
+    if (f) upload(f);
+  };
+
+  return (
+    <div>
+      <p className="text-slate-400 text-xs font-mono uppercase tracking-wider mb-2">Upload Monthly P&L (multi-column QuickBooks format)</p>
+      <div
+        className="upload-zone p-6 text-center cursor-pointer"
+        style={{ borderColor: done ? '#34d399' : dragging ? '#fbbf24' : '#334155', background: done ? 'rgba(52,211,153,0.04)' : 'transparent' }}
+        onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={handleDrop}
+        onClick={() => inputRef.current?.click()}
+      >
+        <input ref={inputRef} type="file" accept=".csv,.xlsx,.xls" className="hidden"
+          onChange={(e) => e.target.files[0] && upload(e.target.files[0])} />
+        {loading ? (
+          <div className="flex flex-col items-center gap-2">
+            <div style={{ width:28, height:28, border:'3px solid #1e293b', borderTop:'3px solid #fbbf24', borderRadius:'50%', animation:'spin 0.8s linear infinite' }} />
+            <p className="text-amber-400 text-sm">Detecting anomalies...</p>
+          </div>
+        ) : done ? (
+          <div className="flex flex-col items-center gap-2">
+            <span style={{fontSize:32}}>✅</span>
+            <p className="text-emerald-400 font-semibold text-sm">Analysis complete — see results below</p>
+            <button className="text-xs text-slate-500 hover:text-slate-300 underline"
+              onClick={(e) => { e.stopPropagation(); setDone(false); onMonthlyData(null); }}>Upload different file</button>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center gap-2">
+            <span style={{fontSize:32}}>📅</span>
+            <p className="text-slate-300 text-sm font-medium">Drop monthly P&L here</p>
+            <p className="text-slate-500 text-xs">QuickBooks export with Jan–Dec columns · CSV or XLSX</p>
+          </div>
+        )}
+      </div>
+      {error && <p className="mt-2 text-xs text-rose-400">{error}</p>}
+    </div>
+  );
+}
+
 export default function UploadPage({ onAnalysisDone }) {
   const [parsed, setParsed] = useState({ pl: null, bsCurrent: null, bsPrevious: null });
   const [entity, setEntity] = useState('');
   const [country, setCountry] = useState('');
   const [deductions, setDeductions] = useState({});
-  const [mode, setMode]     = useState('quick'); // 'quick' | 'full'
+  const [mode, setMode]     = useState('quick'); // 'quick' | 'full' | 'monthly'
+  const [monthlyData, setMonthlyData] = useState(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError]   = useState(null);
 
@@ -147,6 +216,12 @@ export default function UploadPage({ onAnalysisDone }) {
         result = { mode: 'bs', ...res.data };
       }
 
+      if (mode === 'monthly' && parsed.pl) {
+        // For monthly mode, re-upload the original file to the monthly endpoint
+        setError('Please use the monthly upload slot below for anomaly + prediction analysis.');
+        setAnalyzing(false);
+        return;
+      }
       onAnalysisDone(result);
     } catch (e) {
       setError(e.response?.data?.detail || 'Analysis failed. Please try again.');
@@ -179,7 +254,7 @@ export default function UploadPage({ onAnalysisDone }) {
 
       {/* Mode Selector */}
       <div className="flex gap-2 mb-6 fade-up-1">
-        {[['quick','Quick Analysis','One file, instant insights'],['full','Full Analysis','P&L + Balance Sheet + Cash Flow']].map(([m, title, sub]) => (
+        {[['quick','Quick Analysis','One file, instant insights'],['full','Full Analysis','P&L + Balance Sheet + Cash Flow'],['monthly','Monthly Analysis','Anomaly detection + profit prediction']].map(([m, title, sub]) => (
           <button key={m} onClick={() => setMode(m)}
             className="px-5 py-3 rounded-xl text-sm font-medium transition-all text-left"
             style={{
@@ -212,6 +287,20 @@ export default function UploadPage({ onAnalysisDone }) {
             />
           )}
         </div>
+
+        {/* Monthly Analysis slot */}
+        {mode === 'monthly' && (
+          <div className="mb-4">
+            <MonthlyFileSlot onMonthlyData={setMonthlyData} />
+          </div>
+        )}
+
+        {/* Monthly result inline */}
+        {mode === 'monthly' && monthlyData && (
+          <div className="mb-4">
+            <MonthlyDashboard data={monthlyData} />
+          </div>
+        )}
 
         {/* Entity + Country */}
         <div className="grid grid-cols-2 gap-3 mb-5 pt-4" style={{ borderTop:'1px solid rgba(51,65,85,0.4)' }}>
