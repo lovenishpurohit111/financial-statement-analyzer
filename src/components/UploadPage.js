@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import axios from 'axios';
 import API from '../config';
+import DeductionsPanel from './DeductionsPanel';
 
 const ENTITY_OPTIONS = [
   { value: '', label: 'Not Specified (skip tax)' },
@@ -101,6 +102,7 @@ export default function UploadPage({ onAnalysisDone }) {
   const [parsed, setParsed] = useState({ pl: null, bsCurrent: null, bsPrevious: null });
   const [entity, setEntity] = useState('');
   const [country, setCountry] = useState('');
+  const [deductions, setDeductions] = useState({});
   const [mode, setMode]     = useState('quick'); // 'quick' | 'full'
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError]   = useState(null);
@@ -125,6 +127,7 @@ export default function UploadPage({ onAnalysisDone }) {
           bs_previous_data: parsed.bsPrevious?.parsed_data || null,
           entity_type: entity || null,
           country: country || null,
+          deductions: Object.keys(deductions).length ? deductions : null,
         });
         result = { mode: 'full', ...res.data };
 
@@ -133,6 +136,7 @@ export default function UploadPage({ onAnalysisDone }) {
           parsed_data: parsed.pl.parsed_data,
           entity_type: entity || null,
           country: country || null,
+          deductions: Object.keys(deductions).length ? deductions : null,
         });
         result = { mode: 'pl', ...res.data };
 
@@ -228,6 +232,13 @@ export default function UploadPage({ onAnalysisDone }) {
             </select>
           </div>
         </div>
+
+        <DeductionsPanel
+          country={country}
+          entityType={entity}
+          netProfit={null}
+          onDeductionsChange={setDeductions}
+        />
 
         {error && (
           <div className="mb-4 px-4 py-3 rounded-lg text-sm text-rose-300" style={{ background:'rgba(244,63,94,0.1)', border:'1px solid rgba(244,63,94,0.2)' }}>

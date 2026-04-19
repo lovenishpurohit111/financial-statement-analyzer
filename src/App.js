@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import UploadPage from './components/UploadPage';
+import AppNav from './components/AppNav';
 import Dashboard from './components/Dashboard';
 
 export default function App() {
@@ -23,6 +24,7 @@ export default function App() {
       {/* Ambient blobs */}
       <div style={{ position:'fixed', top:'-15%', right:'-10%', width:600, height:600, background:'radial-gradient(circle,rgba(52,211,153,0.06) 0%,transparent 70%)', pointerEvents:'none', zIndex:0 }} />
       <div style={{ position:'fixed', bottom:'-20%', left:'-10%', width:500, height:500, background:'radial-gradient(circle,rgba(34,211,238,0.05) 0%,transparent 70%)', pointerEvents:'none', zIndex:0 }} />
+      <AppNav currentApp="fsa" />
       <div style={{ position:'relative', zIndex:1 }}>
         {page === 'upload'
           ? <UploadPage onAnalysisDone={handleAnalysisDone} />
