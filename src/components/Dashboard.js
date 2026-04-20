@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
+import ExportButtons from './ExportButtons';
 import SummaryCards from './SummaryCards';
 import ChartsPanel from './ChartsPanel';
 import InsightsPanel from './InsightsPanel';
@@ -96,6 +97,7 @@ const TABS = [{id:'overview',label:'Overview'},{id:'insights',label:'Insights'},
 
 export default function Dashboard({results,onReset}) {
   const [tab, setTab] = useState('overview');
+  const dashboardRef = useRef(null);
   const pl   = results?.pl_analysis||(results?.analysis?.type==='pl'?results.analysis:null);
   const bs   = results?.bs_current ||(results?.analysis?.type==='bs'?results.analysis:null);
   const ins  = results?.insights||[];
@@ -109,7 +111,7 @@ export default function Dashboard({results,onReset}) {
   const period=pl?.period||bs?.period||'N/A';
 
   return (
-    <div style={{minHeight:'100vh',background:'#F7F4EE'}}>
+    <div ref={dashboardRef} style={{minHeight:'100vh',background:'#F7F4EE'}}>
       {/* Top bar */}
       <div style={{background:'#FFFFFF',borderBottom:'1px solid #E2DDD4',padding:'0 24px',display:'flex',alignItems:'center',justifyContent:'space-between',height:52,position:'sticky',top:40,zIndex:50}}>
         <div style={{display:'flex',alignItems:'center',gap:16}}>
@@ -120,9 +122,12 @@ export default function Dashboard({results,onReset}) {
             <span style={{fontSize:11,color:'#8A7F70',fontFamily:'IBM Plex Mono'}}>{period}</span>
           </div>
         </div>
-        <button onClick={onReset} className="btn-outline" style={{padding:'6px 14px',fontSize:12,letterSpacing:'0.04em'}}>
-          ← NEW ANALYSIS
-        </button>
+        <div style={{display:'flex',alignItems:'center',gap:12}}>
+          <ExportButtons results={results} dashboardRef={dashboardRef} />
+          <button onClick={onReset} className="btn-outline" style={{padding:'6px 14px',fontSize:12,letterSpacing:'0.04em'}}>
+            ← NEW ANALYSIS
+          </button>
+        </div>
       </div>
 
       {/* Tab nav */}

@@ -3,6 +3,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional
 import io, re
@@ -1046,6 +1047,25 @@ async def analyze_monthly(file: UploadFile = File(...)):
         raise
     except Exception as e:
         raise HTTPException(500, f"Monthly analysis failed: {str(e)}")
+
+
+class ExportReq(BaseModel):
+    results: dict
+    monthly_data: Optional[dict] = None
+
+@app.post("/api/export/excel")
+def export_excel(req: ExportReq):
+    """Generate a fully-formatted multi-sheet Excel workbook."""
+    try:
+        from excel_export import generate_excel
+        xlsx_bytes = generate_excel(req.results, req.monthly_data)
+        return StreamingResponse(
+            io.BytesIO(xlsx_bytes),
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": "attachment; filename=financial-analysis.xlsx"}
+        )
+    except Exception as e:
+        raise HTTPException(500, f"Excel export failed: {str(e)}")
 
 @app.get("/api/health")
 def health(): return {"status":"ok"}
