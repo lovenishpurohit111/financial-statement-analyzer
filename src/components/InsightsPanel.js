@@ -1,81 +1,66 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
-const LEVEL_CONFIG = {
-  positive: { color:'#34d399', bg:'rgba(52,211,153,0.08)', border:'rgba(52,211,153,0.2)', icon:'✓', label:'Positive' },
-  warning:  { color:'#fbbf24', bg:'rgba(251,191,36,0.08)',  border:'rgba(251,191,36,0.2)',  icon:'⚠', label:'Warning'  },
-  critical: { color:'#fb7185', bg:'rgba(251,113,133,0.08)', border:'rgba(251,113,133,0.2)', icon:'!', label:'Critical' },
-  info:     { color:'#22d3ee', bg:'rgba(34,211,238,0.08)',  border:'rgba(34,211,238,0.2)',  icon:'i', label:'Info'     },
+const CFG = {
+  positive: { border:'#1B6535', bg:'#EAF6EE', icon:'✓', iconBg:'#1B6535', iconColor:'#fff', tagColor:'#1B6535', tagBg:'#D1FAE5' },
+  warning:  { border:'#B45309', bg:'#FEF3C7', icon:'!', iconBg:'#B45309', iconColor:'#fff', tagColor:'#92400E', tagBg:'#FDE68A' },
+  critical: { border:'#C41E3A', bg:'#FCEEF1', icon:'!', iconBg:'#C41E3A', iconColor:'#fff', tagColor:'#C41E3A', tagBg:'#FECDD3' },
+  info:     { border:'#1E40AF', bg:'#EFF6FF', icon:'i', iconBg:'#1E40AF', iconColor:'#fff', tagColor:'#1E40AF', tagBg:'#BFDBFE' },
 };
-
-function InsightCard({ insight, delay }) {
-  const cfg = LEVEL_CONFIG[insight.level] || LEVEL_CONFIG.info;
-  return (
-    <div className={`insight-${insight.level} rounded-xl p-4 fade-up`}
-      style={{ animationDelay: delay, borderLeft: `3px solid ${cfg.color}`, background: cfg.bg }}>
-      <div className="flex items-start gap-3">
-        <div style={{ width:24, height:24, borderRadius:6, background:`rgba(${cfg.color === '#34d399' ? '52,211,153' : cfg.color === '#fbbf24' ? '251,191,36' : cfg.color === '#fb7185' ? '251,113,133' : '34,211,238'},0.2)`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, color:cfg.color, flexShrink:0, marginTop:1 }}>
-          {cfg.icon}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-xs font-mono px-1.5 py-0.5 rounded" style={{ background:`rgba(${cfg.color === '#34d399' ? '52,211,153' : cfg.color === '#fbbf24' ? '251,191,36' : cfg.color === '#fb7185' ? '251,113,133' : '34,211,238'},0.12)`, color:cfg.color }}>
-              {insight.category}
-            </span>
-          </div>
-          <p className="text-white font-semibold text-sm mb-1">{insight.title}</p>
-          <p className="text-slate-400 text-sm leading-relaxed">{insight.message}</p>
-          {insight.action && (
-            <p className="mt-2 text-sm" style={{ color:cfg.color }}>
-              → {insight.action}
-            </p>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export default function InsightsPanel({ insights = [] }) {
   const [filter, setFilter] = useState('all');
+  useEffect(() => { setFilter('all'); }, [insights.length]);
+  if (!insights?.length) return null;
 
-  if (!insights.length) return null;
-
-  const counts = insights.reduce((acc, i) => { acc[i.level] = (acc[i.level]||0)+1; return acc; }, {});
+  const counts  = insights.reduce((a,i) => { a[i.level]=(a[i.level]||0)+1; return a; }, {});
   const filtered = filter === 'all' ? insights : insights.filter(i => i.level === filter);
 
   return (
-    <div className="glass p-6">
-      <div className="flex items-center justify-between mb-5">
+    <div>
+      {/* Header */}
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', borderBottom:'2px solid #1A1009', paddingBottom:12, marginBottom:20 }}>
         <div>
-          <h2 className="text-white font-bold" style={{ fontFamily:'DM Serif Display', fontSize:'1.2rem' }}>
-            💡 Financial Insights
-          </h2>
-          <p className="text-slate-500 text-xs font-mono mt-0.5">{insights.length} insights generated</p>
+          <h2 className="headline" style={{ fontSize:20, margin:0 }}>Financial Insights</h2>
+          <p style={{ margin:'4px 0 0', fontSize:12, color:'#8A7F70', fontFamily:'IBM Plex Mono' }}>{insights.length} findings generated</p>
         </div>
-        <div className="flex gap-2">
+        <div style={{ display:'flex', gap:6, flexWrap:'wrap', justifyContent:'flex-end' }}>
           {['all','critical','warning','positive','info'].map(f => {
-            const cnt = f === 'all' ? insights.length : counts[f] || 0;
+            const cnt = f === 'all' ? insights.length : counts[f]||0;
             if (f !== 'all' && !cnt) return null;
-            const cfg = f === 'all' ? { color:'#94a3b8' } : LEVEL_CONFIG[f];
+            const c = CFG[f] || { border:'#C4BAA8', tagColor:'#8A7F70', tagBg:'#EDE9DF' };
+            const active = filter === f;
             return (
               <button key={f} onClick={() => setFilter(f)}
-                className="px-2.5 py-1 rounded-lg text-xs font-medium transition-all capitalize"
-                style={{
-                  background: filter === f ? `rgba(${f==='all'?'148,163,184':f==='positive'?'52,211,153':f==='warning'?'251,191,36':f==='critical'?'251,113,133':'34,211,238'},0.15)` : 'rgba(15,23,42,0.5)',
-                  border: `1px solid ${filter === f ? cfg.color : '#334155'}`,
-                  color: filter === f ? cfg.color : '#64748b',
-                }}>
-                {f === 'all' ? `All (${cnt})` : `${f} (${cnt})`}
+                style={{ padding:'4px 12px', border:`1.5px solid ${active ? c.border : '#C4BAA8'}`, borderRadius:2, background: active ? c.tagBg : '#FFFFFF', color: active ? c.tagColor : '#8A7F70', fontSize:11, fontFamily:'IBM Plex Mono', cursor:'pointer', textTransform:'capitalize', transition:'all 0.15s', fontWeight: active ? 600 : 400, letterSpacing:'0.04em' }}>
+                {f === 'all' ? `ALL (${cnt})` : `${f.toUpperCase()} (${cnt})`}
               </button>
             );
           })}
         </div>
       </div>
 
-      <div className="space-y-3">
-        {filtered.map((ins, i) => (
-          <InsightCard key={i} insight={ins} delay={`${i * 0.05}s`} />
-        ))}
+      {/* Cards */}
+      <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+        {filtered.map((ins, i) => {
+          const c = CFG[ins.level] || CFG.info;
+          return (
+            <div key={i} className="slide-in" style={{ animationDelay:`${i*0.04}s`, background:c.bg, borderLeft:`3px solid ${c.border}`, padding:'14px 18px', borderRadius:'0 4px 4px 0' }}>
+              <div style={{ display:'flex', alignItems:'flex-start', gap:12 }}>
+                <div style={{ width:22, height:22, borderRadius:3, background:c.iconBg, color:c.iconColor, display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, flexShrink:0, marginTop:1 }}>
+                  {c.icon}
+                </div>
+                <div style={{ flex:1 }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4 }}>
+                    <span style={{ fontSize:10, fontFamily:'IBM Plex Mono', color:c.tagColor, background:c.tagBg, padding:'2px 7px', borderRadius:2, letterSpacing:'0.06em', textTransform:'uppercase', fontWeight:600 }}>{ins.category}</span>
+                  </div>
+                  <p style={{ margin:'0 0 4px', fontWeight:600, fontSize:13, color:'#1A1009', fontFamily:'IBM Plex Sans' }}>{ins.title}</p>
+                  <p style={{ margin:0, fontSize:13, color:'#3D3525', fontFamily:'IBM Plex Sans', lineHeight:1.6 }}>{ins.message}</p>
+                  {ins.action && <p style={{ margin:'8px 0 0', fontSize:12, color:c.border, fontFamily:'IBM Plex Sans', fontWeight:500 }}>→ {ins.action}</p>}
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

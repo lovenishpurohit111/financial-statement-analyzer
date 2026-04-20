@@ -5,110 +5,63 @@ import InsightsPanel from './InsightsPanel';
 import TaxPanel from './TaxPanel';
 import BreakdownTable from './BreakdownTable';
 
-const TABS = [
-  { id:'overview',   label:'Overview',   icon:'📊' },
-  { id:'insights',   label:'Insights',   icon:'💡' },
-  { id:'breakdown',  label:'Breakdown',  icon:'📋' },
-  { id:'tax',        label:'Tax',        icon:'🧾' },
-];
+const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0,notation:'compact'}).format(n??0);
 
-const fmt = (n) => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0,notation:'compact'}).format(n??0);
-
-function HealthMeter({ score }) {
-  if (score == null) return null;
-  const color = score >= 80 ? '#34d399' : score >= 60 ? '#22d3ee' : score >= 40 ? '#fbbf24' : '#fb7185';
-  const label = score >= 80 ? 'Excellent' : score >= 60 ? 'Good' : score >= 40 ? 'Fair' : 'Poor';
-  const circumference = 2 * Math.PI * 38;
-  const dash = (score / 100) * circumference;
-
+function HealthBar({score}) {
+  if (score==null) return null;
+  const color = score>=80?'#1B6535':score>=60?'#1E40AF':score>=40?'#B45309':'#C41E3A';
+  const label = score>=80?'Excellent':score>=60?'Good':score>=40?'Fair':'Poor';
   return (
-    <div className="glass p-5 flex items-center gap-5">
-      <div style={{ position:'relative', width:90, height:90, flexShrink:0 }}>
-        <svg width="90" height="90" viewBox="0 0 90 90">
-          <circle cx="45" cy="45" r="38" fill="none" stroke="#1e293b" strokeWidth="7" />
-          <circle cx="45" cy="45" r="38" fill="none" stroke={color} strokeWidth="7"
-            strokeDasharray={`${dash} ${circumference}`} strokeDashoffset={circumference * 0.25}
-            strokeLinecap="round" style={{ transition:'stroke-dasharray 1s ease' }} />
-        </svg>
-        <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center' }}>
-          <span style={{ fontFamily:'JetBrains Mono', fontSize:20, fontWeight:700, color }}>{score}</span>
-          <span style={{ fontSize:9, color:'#64748b', fontFamily:'JetBrains Mono' }}>/100</span>
+    <div style={{background:'#1A1009',color:'#F7F4EE',padding:'20px 24px',display:'flex',alignItems:'center',gap:32,flexWrap:'wrap'}}>
+      <div style={{display:'flex',alignItems:'baseline',gap:8}}>
+        <span style={{fontFamily:'IBM Plex Mono',fontSize:48,fontWeight:600,color}}>{score}</span>
+        <span style={{fontFamily:'IBM Plex Mono',fontSize:18,color:'#8A7F70'}}>/100</span>
+      </div>
+      <div style={{flex:1}}>
+        <p style={{margin:'0 0 8px',fontSize:11,fontFamily:'IBM Plex Mono',letterSpacing:'0.1em',color:'#8A7F70',textTransform:'uppercase'}}>Financial Health Score</p>
+        <div style={{height:6,background:'#3D3525',borderRadius:2,overflow:'hidden',maxWidth:300}}>
+          <div style={{width:`${score}%`,height:'100%',background:color,borderRadius:2,transition:'width 1s ease'}}/>
         </div>
+        <p style={{margin:'6px 0 0',fontFamily:'IBM Plex Display',fontSize:18,fontWeight:700,color}}>{label}</p>
       </div>
-      <div>
-        <p className="text-slate-400 text-xs font-mono uppercase tracking-wider mb-1">Financial Health</p>
-        <p className="text-2xl font-bold" style={{ fontFamily:'DM Serif Display', color }}>{label}</p>
-        <p className="text-slate-500 text-xs mt-1">Profitability · Liquidity · Leverage · Efficiency</p>
-      </div>
-    </div>
-  );
-}
-
-function BSComparison({ comparison, bsPrev }) {
-  if (!comparison || !bsPrev) return null;
-  const items = [
-    { label:'Total Assets', key:'total_assets_change', icon:'🏦' },
-    { label:'Total Liabilities', key:'total_liabilities_change', icon:'📋' },
-    { label:'Equity', key:'equity_change', icon:'💎' },
-    { label:'Working Capital', key:'working_capital_change', icon:'🔄' },
-  ];
-
-  return (
-    <div className="glass p-5">
-      <h3 className="text-white font-semibold mb-4" style={{ fontFamily:'DM Serif Display', fontSize:'1.1rem' }}>
-        📅 Period-over-Period Changes
-      </h3>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {items.map(item => {
-          const val = comparison[item.key];
-          if (val == null) return null;
-          const color = val >= 0 ? '#34d399' : '#fb7185';
-          return (
-            <div key={item.key} className="glass-sm p-3 text-center">
-              <div className="text-2xl mb-1">{item.icon}</div>
-              <p className="text-slate-500 text-xs mb-1">{item.label}</p>
-              <p className="font-mono font-bold text-base" style={{ color }}>{val >= 0 ? '+' : ''}{val.toFixed(1)}%</p>
-            </div>
-          );
-        })}
+      <div style={{fontSize:11,fontFamily:'IBM Plex Mono',color:'#8A7F70',lineHeight:2}}>
+        <div>Profitability · Liquidity</div>
+        <div>Leverage · Efficiency</div>
       </div>
     </div>
   );
 }
 
-function RatioTable({ pl, bs }) {
-  const rows = [];
-  if (pl?.ratios) {
-    const r = pl.ratios;
-    rows.push({ label:'Gross Margin',        value:`${r.gross_margin?.toFixed(1)}%`,      benchmark:'> 30%',  ok: r.gross_margin >= 30 });
-    rows.push({ label:'Operating Margin',     value:`${r.operating_margin?.toFixed(1)}%`,  benchmark:'> 10%',  ok: r.operating_margin >= 10 });
-    rows.push({ label:'Net Profit Margin',    value:`${r.net_profit_margin?.toFixed(1)}%`, benchmark:'> 10%',  ok: r.net_profit_margin >= 10 });
-    rows.push({ label:'Expense Ratio',        value:`${r.expense_ratio?.toFixed(1)}%`,     benchmark:'< 80%',  ok: r.expense_ratio < 80 });
-    rows.push({ label:'COGS Ratio',           value:`${r.cogs_ratio?.toFixed(1)}%`,        benchmark:'< 40%',  ok: r.cogs_ratio < 40 });
+function RatioTable({pl,bs}) {
+  const rows=[];
+  if(pl?.ratios){const r=pl.ratios;
+    rows.push({label:'Gross Margin',      value:`${r.gross_margin?.toFixed(1)}%`,      bench:'>30%',  ok:r.gross_margin>=30});
+    rows.push({label:'Operating Margin',  value:`${r.operating_margin?.toFixed(1)}%`,  bench:'>10%',  ok:r.operating_margin>=10});
+    rows.push({label:'Net Profit Margin', value:`${r.net_profit_margin?.toFixed(1)}%`, bench:'>10%',  ok:r.net_profit_margin>=10});
+    rows.push({label:'Expense Ratio',     value:`${r.expense_ratio?.toFixed(1)}%`,     bench:'<80%',  ok:r.expense_ratio<80});
+    rows.push({label:'COGS Ratio',        value:`${r.cogs_ratio?.toFixed(1)}%`,        bench:'<40%',  ok:r.cogs_ratio<40});
   }
-  if (bs?.ratios) {
-    const r = bs.ratios;
-    if (r.current_ratio != null) rows.push({ label:'Current Ratio',   value:`${r.current_ratio?.toFixed(2)}x`,   benchmark:'> 1.5',  ok: r.current_ratio >= 1.5 });
-    if (r.debt_to_equity != null) rows.push({ label:'Debt-to-Equity', value:`${r.debt_to_equity?.toFixed(2)}x`,  benchmark:'< 1.5',  ok: r.debt_to_equity <= 1.5 });
-    if (r.debt_to_assets != null) rows.push({ label:'Debt-to-Assets', value:`${r.debt_to_assets?.toFixed(2)}x`,  benchmark:'< 0.5',  ok: r.debt_to_assets <= 0.5 });
-    if (r.equity_ratio != null) rows.push({ label:'Equity Ratio',     value:`${r.equity_ratio?.toFixed(1)}%`,    benchmark:'> 50%',  ok: r.equity_ratio >= 50 });
+  if(bs?.ratios){const r=bs.ratios;
+    if(r.current_ratio!=null)  rows.push({label:'Current Ratio',   value:`${r.current_ratio?.toFixed(2)}x`,  bench:'>1.5', ok:r.current_ratio>=1.5});
+    if(r.debt_to_equity!=null) rows.push({label:'Debt-to-Equity',  value:`${r.debt_to_equity?.toFixed(2)}x`, bench:'<1.5', ok:r.debt_to_equity<=1.5});
+    if(r.debt_to_assets!=null) rows.push({label:'Debt-to-Assets',  value:`${r.debt_to_assets?.toFixed(2)}x`, bench:'<0.5', ok:r.debt_to_assets<=0.5});
+    if(r.equity_ratio!=null)   rows.push({label:'Equity Ratio',    value:`${r.equity_ratio?.toFixed(1)}%`,   bench:'>50%', ok:r.equity_ratio>=50});
   }
-  if (!rows.length) return null;
-
+  if(!rows.length) return null;
   return (
-    <div className="glass p-5">
-      <h3 className="text-white font-semibold mb-4" style={{ fontFamily:'DM Serif Display', fontSize:'1.1rem' }}>
-        📐 Financial Ratios
-      </h3>
-      <table className="w-full data-table">
-        <thead><tr><th className="text-left">Ratio</th><th className="text-right">Value</th><th className="text-right">Benchmark</th><th className="text-center">Status</th></tr></thead>
+    <div style={{background:'#FFFFFF',border:'1px solid #E2DDD4',borderTop:'3px solid #1A1009',borderRadius:'0 0 4px 4px'}}>
+      <div style={{padding:'16px 20px 12px',borderBottom:'1px solid #EDE9DF'}}>
+        <h3 className="headline" style={{fontSize:16,margin:0}}>Financial Ratios</h3>
+      </div>
+      <table className="data-table">
+        <thead><tr><th>Ratio</th><th style={{textAlign:'right'}}>Value</th><th style={{textAlign:'right'}}>Benchmark</th><th style={{textAlign:'center'}}>Status</th></tr></thead>
         <tbody>
-          {rows.map((r, i) => (
+          {rows.map((r,i) => (
             <tr key={i}>
-              <td className="text-slate-300 text-sm">{r.label}</td>
-              <td className="text-right font-mono text-sm font-semibold" style={{ color: r.ok ? '#34d399' : '#fb7185' }}>{r.value}</td>
-              <td className="text-right text-slate-500 text-xs font-mono">{r.benchmark}</td>
-              <td className="text-center text-sm">{r.ok ? '✓' : '✗'}</td>
+              <td style={{fontFamily:'IBM Plex Sans',fontSize:13}}>{r.label}</td>
+              <td style={{textAlign:'right',fontFamily:'IBM Plex Mono',fontSize:13,fontWeight:600,color:r.ok?'#1B6535':'#C41E3A'}}>{r.value}</td>
+              <td style={{textAlign:'right',fontFamily:'IBM Plex Mono',fontSize:11,color:'#8A7F70'}}>{r.bench}</td>
+              <td style={{textAlign:'center',fontSize:14}}>{r.ok?'✓':'✗'}</td>
             </tr>
           ))}
         </tbody>
@@ -117,105 +70,100 @@ function RatioTable({ pl, bs }) {
   );
 }
 
-export default function Dashboard({ results, onReset }) {
-  const [activeTab, setActiveTab] = useState('overview');
-
-  const mode = results?.mode;
-  const pl   = results?.pl_analysis || (results?.analysis?.type === 'pl' ? results.analysis : null);
-  const bs   = results?.bs_current  || (results?.analysis?.type === 'bs' ? results.analysis : null);
-  const insights = results?.insights || [];
-  const tax      = results?.tax;
-  const health   = results?.health_score;
-  const cf       = results?.cash_flow;
-  const comparison = results?.balance_sheet_comparison;
-  const bsPrev   = results?.bs_previous;
-
-  // Nav info
-  const detectedLabel = mode === 'full' ? 'Full Analysis' : pl ? 'Profit & Loss' : 'Balance Sheet';
-  const period = pl?.period || bs?.period || 'N/A';
-
+function BSComp({comp,prev}) {
+  if(!comp||!prev) return null;
+  const items=[{label:'Total Assets',k:'total_assets_change'},{label:'Liabilities',k:'total_liabilities_change'},{label:'Equity',k:'equity_change'},{label:'Working Capital',k:'working_capital_change'}];
   return (
-    <div className="min-h-screen px-4 py-6 max-w-7xl mx-auto">
-      {/* Nav */}
-      <div className="flex items-center justify-between mb-6 fade-up">
-        <div className="flex items-center gap-3">
-          <div style={{ width:40, height:40, borderRadius:10, background:'linear-gradient(135deg,#34d399,#22d3ee)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-              <path d="M18 20V10M12 20V4M6 20v-6" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </div>
-          <div>
-            <div className="text-white font-semibold" style={{ fontFamily:'DM Serif Display', fontSize:'1.1rem' }}>FinAnalyzer</div>
-            <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-xs font-mono px-2 py-0.5 rounded-full text-emerald-400" style={{ background:'rgba(52,211,153,0.1)', border:'1px solid rgba(52,211,153,0.2)' }}>
-                {detectedLabel}
-              </span>
-              <span className="text-slate-500 text-xs font-mono">· {period}</span>
-            </div>
-          </div>
-        </div>
-        <button onClick={onReset}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm text-slate-400 hover:text-white transition-colors"
-          style={{ background:'rgba(30,41,59,0.6)', border:'1px solid #334155' }}>
-          ← New Analysis
-        </button>
-      </div>
-
-      {/* Tab Bar */}
-      <div className="flex gap-2 mb-6 fade-up-1">
-        {TABS.map(tab => {
-          // BUG FIX: show tax tab whenever a tax object exists (even locked state)
-          if (tab.id === 'tax' && !tax) return null;
+    <div style={{background:'#1A1009',color:'#F7F4EE',padding:'20px 24px'}}>
+      <p className="section-label" style={{color:'#C41E3A',marginBottom:16}}>Period-over-Period Change</p>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(140px,1fr))',gap:16}}>
+        {items.map(it => {
+          const v=comp[it.k]; if(v==null) return null;
+          const c=v>=0?'#1B6535':'#C41E3A';
           return (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all"
-              style={{
-                background: activeTab === tab.id ? 'rgba(52,211,153,0.12)' : 'rgba(15,23,42,0.5)',
-                border: activeTab === tab.id ? '1px solid rgba(52,211,153,0.3)' : '1px solid #334155',
-                color: activeTab === tab.id ? '#34d399' : '#64748b',
-              }}>
-              {tab.icon} {tab.label}
-            </button>
+            <div key={it.k}>
+              <p style={{margin:'0 0 4px',fontSize:11,fontFamily:'IBM Plex Mono',color:'#8A7F70',letterSpacing:'0.06em',textTransform:'uppercase'}}>{it.label}</p>
+              <p style={{margin:0,fontFamily:'IBM Plex Mono',fontSize:22,fontWeight:600,color:c}}>{v>=0?'+':''}{v.toFixed(1)}%</p>
+            </div>
           );
         })}
       </div>
+    </div>
+  );
+}
 
-      {/* Summary Cards — always visible */}
-      <div className="mb-6 fade-up-1">
-        <SummaryCards results={results} />
+const TABS = [{id:'overview',label:'Overview'},{id:'insights',label:'Insights'},{id:'breakdown',label:'Breakdown'},{id:'tax',label:'Tax'}];
+
+export default function Dashboard({results,onReset}) {
+  const [tab, setTab] = useState('overview');
+  const pl   = results?.pl_analysis||(results?.analysis?.type==='pl'?results.analysis:null);
+  const bs   = results?.bs_current ||(results?.analysis?.type==='bs'?results.analysis:null);
+  const ins  = results?.insights||[];
+  const tax  = results?.tax;
+  const hs   = results?.health_score;
+  const cf   = results?.cash_flow;
+  const comp = results?.balance_sheet_comparison;
+  const prev = results?.bs_previous;
+  const mode = results?.mode;
+  const label= mode==='full'?'Full Analysis':pl?'Profit & Loss':'Balance Sheet';
+  const period=pl?.period||bs?.period||'N/A';
+
+  return (
+    <div style={{minHeight:'100vh',background:'#F7F4EE'}}>
+      {/* Top bar */}
+      <div style={{background:'#FFFFFF',borderBottom:'1px solid #E2DDD4',padding:'0 24px',display:'flex',alignItems:'center',justifyContent:'space-between',height:52,position:'sticky',top:40,zIndex:50}}>
+        <div style={{display:'flex',alignItems:'center',gap:16}}>
+          <h1 className="headline" style={{fontSize:18,margin:0}}>FinAnalyzer</h1>
+          <span style={{width:1,height:20,background:'#E2DDD4'}}/>
+          <div style={{display:'flex',alignItems:'center',gap:8}}>
+            <span style={{fontSize:11,fontFamily:'IBM Plex Mono',background:'#FCEEF1',color:'#C41E3A',padding:'3px 8px',borderRadius:2,fontWeight:600,letterSpacing:'0.06em'}}>{label.toUpperCase()}</span>
+            <span style={{fontSize:11,color:'#8A7F70',fontFamily:'IBM Plex Mono'}}>{period}</span>
+          </div>
+        </div>
+        <button onClick={onReset} className="btn-outline" style={{padding:'6px 14px',fontSize:12,letterSpacing:'0.04em'}}>
+          ← NEW ANALYSIS
+        </button>
       </div>
 
-      {/* Tab Content */}
-      {activeTab === 'overview' && (
-        <div className="space-y-5">
-          {health != null && <HealthMeter score={health} />}
-          <ChartsPanel results={results} />
-          {comparison && <BSComparison comparison={comparison} bsPrev={bsPrev} />}
-          <RatioTable pl={pl} bs={bs} />
-        </div>
-      )}
+      {/* Tab nav */}
+      <div style={{background:'#FFFFFF',borderBottom:'1px solid #E2DDD4',padding:'0 24px',display:'flex',gap:0}}>
+        {TABS.filter(t => t.id!=='tax'||!!tax).map(t => (
+          <button key={t.id} onClick={()=>setTab(t.id)}
+            style={{padding:'12px 20px',background:'transparent',border:'none',borderBottom:tab===t.id?'3px solid #C41E3A':'3px solid transparent',color:tab===t.id?'#C41E3A':'#8A7F70',fontSize:13,fontFamily:'IBM Plex Sans',fontWeight:tab===t.id?600:400,cursor:'pointer',transition:'all 0.15s',letterSpacing:'0.02em',marginBottom:-1}}>
+            {t.label}
+          </button>
+        ))}
+      </div>
 
-      {activeTab === 'insights' && (
-        insights.length > 0
-          ? <InsightsPanel insights={insights} />
-          : (
-            <div className="glass p-10 text-center">
-              <div style={{fontSize:48,marginBottom:12}}>💡</div>
-              <p className="text-slate-400 font-semibold">No insights generated yet</p>
-              <p className="text-slate-600 text-sm mt-2">Try running a Full Analysis (P&L + Balance Sheet) for comprehensive insights.</p>
+      {/* Content */}
+      <div style={{maxWidth:1200,margin:'0 auto',padding:'28px 24px'}}>
+        {/* Summary cards — always visible */}
+        <div style={{marginBottom:28}}>
+          <SummaryCards results={results}/>
+        </div>
+
+        {tab==='overview' && (
+          <div style={{display:'flex',flexDirection:'column',gap:20}}>
+            {hs!=null && <HealthBar score={hs}/>}
+            <ChartsPanel results={results}/>
+            {comp && <BSComp comp={comp} prev={prev}/>}
+            <RatioTable pl={pl} bs={bs}/>
+          </div>
+        )}
+
+        {tab==='insights' && (
+          ins.length>0 ? <InsightsPanel insights={ins}/>
+          : <div style={{background:'#FFFFFF',border:'1px solid #E2DDD4',padding:'60px 40px',textAlign:'center',borderRadius:4}}>
+              <p style={{fontSize:36,marginBottom:12}}>💡</p>
+              <p style={{fontWeight:600,color:'#1A1009',fontFamily:'IBM Plex Sans'}}>No insights generated</p>
+              <p style={{color:'#8A7F70',fontSize:13,marginTop:6,fontFamily:'IBM Plex Sans'}}>Run a Full Analysis (P&L + Balance Sheet) to generate comprehensive financial insights.</p>
             </div>
-          )
-      )}
+        )}
 
-      {activeTab === 'breakdown' && (
-        <BreakdownTable results={results} />
-      )}
+        {tab==='breakdown' && <BreakdownTable results={results}/>}
 
-      {activeTab === 'tax' && tax && (
-        <div className="space-y-4">
-          <TaxPanel tax={tax} />
-        </div>
-      )}
+        {tab==='tax' && tax && <TaxPanel tax={tax}/>}
+      </div>
     </div>
   );
 }

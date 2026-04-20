@@ -1,42 +1,37 @@
 import React, { useState } from 'react';
+const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',minimumFractionDigits:0}).format(n??0);
 
-const fmt = (n) => new Intl.NumberFormat('en-US', { style:'currency', currency:'USD', minimumFractionDigits:0 }).format(n ?? 0);
-
-function Section({ title, items, color, maxVal }) {
-  const [open, setOpen] = useState(true);
+function Section({title,items,color,maxVal}) {
+  const [open,setOpen] = useState(true);
   if (!items?.length) return null;
-  const total = items.reduce((s, i) => s + i.value, 0);
-
+  const total = items.reduce((s,i)=>s+i.value,0);
   return (
-    <div className="mb-2">
-      <button onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between px-4 py-2.5 text-left hover:bg-slate-800/30 transition-colors rounded-lg">
-        <div className="flex items-center gap-2">
-          <div style={{ width:8, height:8, borderRadius:'50%', background:`rgb(${color})`, flexShrink:0 }} />
-          <span className="text-slate-300 font-medium text-sm">{title}</span>
-          <span className="text-xs font-mono text-slate-500">({items.length} items)</span>
+    <div style={{marginBottom:2}}>
+      <button onClick={()=>setOpen(!open)}
+        style={{width:'100%',display:'flex',justifyContent:'space-between',alignItems:'center',padding:'11px 16px',background:'#F7F4EE',border:'none',cursor:'pointer',fontFamily:'IBM Plex Sans',borderBottom:'1px solid #E2DDD4',transition:'background 0.15s'}}
+        onMouseEnter={e=>e.currentTarget.style.background='#EDE9DF'}
+        onMouseLeave={e=>e.currentTarget.style.background='#F7F4EE'}>
+        <div style={{display:'flex',alignItems:'center',gap:10}}>
+          <div style={{width:10,height:10,borderRadius:2,background:color,flexShrink:0}}/>
+          <span style={{fontWeight:600,fontSize:13,color:'#1A1009',fontFamily:'IBM Plex Sans'}}>{title}</span>
+          <span style={{fontSize:11,color:'#8A7F70',fontFamily:'IBM Plex Mono'}}>({items.length})</span>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="font-mono text-sm font-bold" style={{ color:`rgb(${color})` }}>{fmt(total)}</span>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{ color:'#475569', transform: open ? 'rotate(180deg)' : 'rotate(0)', transition:'transform 0.2s' }}>
-            <polyline points="6 9 12 15 18 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
+        <div style={{display:'flex',alignItems:'center',gap:16}}>
+          <span style={{fontFamily:'IBM Plex Mono',fontWeight:700,fontSize:13,color}}>{fmt(total)}</span>
+          <span style={{fontSize:10,color:'#C4BAA8'}}>{open?'▲':'▼'}</span>
         </div>
       </button>
-
       {open && (
-        <div className="pl-4 space-y-1 mt-1">
-          {items.map((item, i) => {
-            const barPct = maxVal ? Math.min(item.value / maxVal * 100, 100) : 0;
+        <div>
+          {items.map((item,i) => {
+            const barPct = maxVal ? Math.min(item.value/maxVal*100,100) : 0;
             return (
-              <div key={i} className="flex items-center justify-between px-3 py-1.5 rounded-lg group hover:bg-slate-800/20 transition-colors">
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div style={{ width:100, height:4, background:'#1e293b', borderRadius:2, overflow:'hidden', flexShrink:0 }}>
-                    <div style={{ width:`${barPct}%`, height:'100%', background:`rgba(${color},0.6)`, borderRadius:2 }} />
-                  </div>
-                  <span className="text-slate-400 text-sm truncate">{item.label}</span>
+              <div key={i} style={{display:'flex',alignItems:'center',gap:12,padding:'10px 16px 10px 36px',borderBottom:'1px solid #EDE9DF',background:'#FFFFFF'}}>
+                <div style={{width:80,height:4,background:'#EDE9DF',borderRadius:2,overflow:'hidden',flexShrink:0}}>
+                  <div style={{width:`${barPct}%`,height:'100%',background:color,borderRadius:2}}/>
                 </div>
-                <span className="font-mono text-sm text-slate-300 ml-3 flex-shrink-0">{fmt(item.value)}</span>
+                <span style={{flex:1,fontSize:13,color:'#3D3525',fontFamily:'IBM Plex Sans',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{item.label}</span>
+                <span style={{fontFamily:'IBM Plex Mono',fontSize:13,color:'#1A1009',flexShrink:0}}>{fmt(item.value)}</span>
               </div>
             );
           })}
@@ -46,52 +41,36 @@ function Section({ title, items, color, maxVal }) {
   );
 }
 
-export default function BreakdownTable({ results }) {
-  const pl = results?.analysis?.type === 'pl' ? results.analysis : results?.pl_analysis;
-  const bs = results?.analysis?.type === 'bs' ? results.analysis : results?.bs_current;
-
-  // BUG FIX: guard against missing breakdown sections
-  const rawPlBreakdown = pl?.breakdown;
-  const plBreakdown = rawPlBreakdown && (
-    (rawPlBreakdown.income?.length > 0) ||
-    (rawPlBreakdown.cogs?.length > 0) ||
-    (rawPlBreakdown.operating_expenses?.length > 0)
-  ) ? rawPlBreakdown : null;
+export default function BreakdownTable({results}) {
+  const pl  = results?.pl_analysis||(results?.analysis?.type==='pl'?results.analysis:null);
+  const bs  = results?.bs_current ||(results?.analysis?.type==='bs'?results.analysis:null);
+  const rawPl = pl?.breakdown;
+  const plBreakdown = rawPl&&((rawPl.income?.length>0)||(rawPl.cogs?.length>0)||(rawPl.operating_expenses?.length>0))?rawPl:null;
   const bsBreakdown = bs?.breakdown;
-
-  const allValues = plBreakdown
-    ? [...(plBreakdown.income||[]), ...(plBreakdown.cogs||[]), ...(plBreakdown.operating_expenses||[])].map(i => i.value)
-    : bsBreakdown
-    ? Object.values(bsBreakdown).flat().map(i => i.value)
-    : [];
-  const maxVal = Math.max(...allValues, 1);
+  const allVals = plBreakdown?[...(plBreakdown.income||[]),...(plBreakdown.cogs||[]),...(plBreakdown.operating_expenses||[])].map(i=>i.value):bsBreakdown?Object.values(bsBreakdown).flat().map(i=>i.value):[];
+  const maxVal = Math.max(...allVals,1);
 
   return (
-    <div className="glass p-5">
-      <h2 className="text-white font-bold mb-4" style={{ fontFamily:'DM Serif Display', fontSize:'1.2rem' }}>
-        📋 Line Item Breakdown
-      </h2>
-
-      {plBreakdown && (
-        <>
-          <Section title="Income / Revenue"    items={plBreakdown.income}              color="52,211,153"  maxVal={maxVal} />
-          <Section title="Cost of Goods Sold"  items={plBreakdown.cogs}               color="251,191,36"  maxVal={maxVal} />
-          <Section title="Operating Expenses"  items={plBreakdown.operating_expenses}  color="251,113,133" maxVal={maxVal} />
-          <Section title="Other Income"        items={plBreakdown.other_income}        color="34,211,238"  maxVal={maxVal} />
-          <Section title="Other Expenses"      items={plBreakdown.other_expenses}      color="167,139,250" maxVal={maxVal} />
-        </>
-      )}
-
-      {bsBreakdown && (
-        <>
-          <Section title="Current Assets"         items={bsBreakdown.current_assets}        color="52,211,153"  maxVal={maxVal} />
-          <Section title="Fixed Assets"            items={bsBreakdown.fixed_assets}          color="34,211,238"  maxVal={maxVal} />
-          <Section title="Other Assets"            items={bsBreakdown.other_assets}          color="167,139,250" maxVal={maxVal} />
-          <Section title="Current Liabilities"     items={bsBreakdown.current_liabilities}   color="251,191,36"  maxVal={maxVal} />
-          <Section title="Long-Term Liabilities"   items={bsBreakdown.long_term_liabilities} color="251,113,133" maxVal={maxVal} />
-          <Section title="Equity"                  items={bsBreakdown.equity}                color="251,113,133" maxVal={maxVal} />
-        </>
-      )}
+    <div style={{background:'#FFFFFF',border:'1px solid #E2DDD4',borderRadius:4,overflow:'hidden'}}>
+      <div style={{padding:'16px 20px',borderBottom:'2px solid #1A1009',display:'flex',justifyContent:'space-between',alignItems:'baseline'}}>
+        <h2 className="headline" style={{fontSize:18,margin:0}}>Line Item Breakdown</h2>
+        <p style={{margin:0,fontSize:11,color:'#8A7F70',fontFamily:'IBM Plex Mono'}}>Click section to expand / collapse</p>
+      </div>
+      {plBreakdown && <>
+        <Section title="Income / Revenue"    items={plBreakdown.income}             color="#1B6535" maxVal={maxVal}/>
+        <Section title="Cost of Goods Sold"  items={plBreakdown.cogs}              color="#B45309" maxVal={maxVal}/>
+        <Section title="Operating Expenses"  items={plBreakdown.operating_expenses} color="#C41E3A" maxVal={maxVal}/>
+        <Section title="Other Income"        items={plBreakdown.other_income}       color="#1E40AF" maxVal={maxVal}/>
+        <Section title="Other Expenses"      items={plBreakdown.other_expenses}     color="#7C3AED" maxVal={maxVal}/>
+      </>}
+      {bsBreakdown && <>
+        <Section title="Current Assets"          items={bsBreakdown.current_assets}        color="#1B6535" maxVal={maxVal}/>
+        <Section title="Fixed Assets"            items={bsBreakdown.fixed_assets}          color="#2D9150" maxVal={maxVal}/>
+        <Section title="Other Assets"            items={bsBreakdown.other_assets}          color="#1E40AF" maxVal={maxVal}/>
+        <Section title="Current Liabilities"     items={bsBreakdown.current_liabilities}   color="#C41E3A" maxVal={maxVal}/>
+        <Section title="Long-Term Liabilities"   items={bsBreakdown.long_term_liabilities} color="#9E1830" maxVal={maxVal}/>
+        <Section title="Equity"                  items={bsBreakdown.equity}                color="#B45309" maxVal={maxVal}/>
+      </>}
     </div>
   );
 }

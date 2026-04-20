@@ -2,37 +2,150 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Base ─────────────────────────────────────────────────── */
 * { box-sizing: border-box; }
-body { margin: 0; font-family: 'DM Sans', system-ui, sans-serif; background: #060d1a; color: #e2e8f0; -webkit-font-smoothing: antialiased; }
+body {
+  margin: 0;
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  background: #F7F4EE;
+  color: #1A1009;
+  -webkit-font-smoothing: antialiased;
+}
 
+/* ── Scrollbar ────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: #0f172a; }
-::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+::-webkit-scrollbar-track { background: #EDE9DF; }
+::-webkit-scrollbar-thumb { background: #C4BAA8; border-radius: 3px; }
 
-.glass { background: rgba(15,23,42,0.85); backdrop-filter: blur(12px); border: 1px solid rgba(51,65,85,0.5); border-radius: 16px; }
-.glass-sm { background: rgba(15,23,42,0.7); border: 1px solid rgba(51,65,85,0.4); border-radius: 10px; }
+/* ── Editorial card system ────────────────────────────────── */
+.card {
+  background: #FFFFFF;
+  border: 1px solid #E2DDD4;
+  border-radius: 4px;
+  box-shadow: 0 1px 4px rgba(26,16,9,0.06);
+}
+.card-ruled {
+  background: #FFFFFF;
+  border: 1px solid #E2DDD4;
+  border-top: 3px solid #C41E3A;
+  border-radius: 0 0 4px 4px;
+  box-shadow: 0 1px 4px rgba(26,16,9,0.06);
+}
+.card-dark {
+  background: #1A1009;
+  border: 1px solid #3D3525;
+  border-radius: 4px;
+  color: #F7F4EE;
+}
 
-.gradient-text { background: linear-gradient(135deg, #34d399, #22d3ee); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
-.gradient-text-gold { background: linear-gradient(135deg, #fbbf24, #f59e0b); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+/* ── Upload zone ──────────────────────────────────────────── */
+.upload-zone {
+  border: 2px dashed #C4BAA8;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+.upload-zone:hover, .upload-zone.drag-over {
+  border-color: #C41E3A;
+  background: #FCEEF1;
+}
 
-.upload-zone { border: 2px dashed #334155; transition: all 0.3s; border-radius: 16px; }
-.upload-zone:hover, .upload-zone.drag-over { border-color: #34d399; background: rgba(52,211,153,0.04); }
+/* ── Typography ───────────────────────────────────────────── */
+.headline {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #1A1009;
+}
+.section-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #8A7F70;
+}
+.ruled-header {
+  border-bottom: 2px solid #1A1009;
+  padding-bottom: 8px;
+  margin-bottom: 16px;
+}
+.crimson-rule {
+  border-bottom: 3px solid #C41E3A;
+  padding-bottom: 8px;
+  margin-bottom: 16px;
+}
 
-@keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
-@keyframes spin { to { transform: rotate(360deg); } }
-@keyframes pulse-glow { 0%,100% { box-shadow: 0 0 0 0 rgba(52,211,153,0.3); } 50% { box-shadow: 0 0 20px 4px rgba(52,211,153,0.15); } }
+/* ── Data table ───────────────────────────────────────────── */
+.data-table { width: 100%; border-collapse: collapse; }
+.data-table th {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.67rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #8A7F70;
+  padding: 10px 14px;
+  border-bottom: 2px solid #1A1009;
+  text-align: left;
+  background: #F7F4EE;
+}
+.data-table td {
+  padding: 11px 14px;
+  border-bottom: 1px solid #EDE9DF;
+  font-size: 0.875rem;
+  color: #1A1009;
+}
+.data-table tbody tr:hover { background: #FAF8F4; }
+.data-table tbody tr:last-child td { border-bottom: none; }
 
-.fade-up { animation: fadeUp 0.4s ease forwards; }
-.fade-up-1 { animation: fadeUp 0.4s 0.1s ease both; }
-.fade-up-2 { animation: fadeUp 0.4s 0.2s ease both; }
-.fade-up-3 { animation: fadeUp 0.4s 0.3s ease both; }
-.fade-up-4 { animation: fadeUp 0.4s 0.4s ease both; }
+/* ── Insight cards ────────────────────────────────────────── */
+.insight-positive { border-left: 3px solid #1B6535; background: #EAF6EE; }
+.insight-warning  { border-left: 3px solid #B45309; background: #FEF3C7; }
+.insight-critical { border-left: 3px solid #C41E3A; background: #FCEEF1; }
+.insight-info     { border-left: 3px solid #1E40AF; background: #EFF6FF; }
 
-.insight-positive { border-left: 3px solid #34d399; background: rgba(52,211,153,0.06); }
-.insight-warning   { border-left: 3px solid #fbbf24; background: rgba(251,191,36,0.06); }
-.insight-critical  { border-left: 3px solid #fb7185; background: rgba(251,113,133,0.06); }
-.insight-info      { border-left: 3px solid #22d3ee; background: rgba(34,211,238,0.06); }
+/* ── Numbers ──────────────────────────────────────────────── */
+.num { font-family: 'IBM Plex Mono', monospace; }
+.num-pos { color: #1B6535; }
+.num-neg { color: #C41E3A; }
+.num-neutral { color: #3D3525; }
 
-.data-table th { font-family: 'JetBrains Mono'; font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; color: #64748b; padding: 10px 14px; border-bottom: 1px solid #1e293b; }
-.data-table td { padding: 12px 14px; border-bottom: 1px solid rgba(30,41,59,0.4); font-size: 0.85rem; }
-.data-table tbody tr:hover { background: rgba(51,65,85,0.2); }
+/* ── Buttons ──────────────────────────────────────────────── */
+.btn-primary {
+  background: #C41E3A;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 2px;
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-primary:hover { background: #9E1830; }
+.btn-primary:disabled { background: #C4BAA8; cursor: not-allowed; }
+
+.btn-outline {
+  background: transparent;
+  color: #1A1009;
+  border: 1.5px solid #C4BAA8;
+  border-radius: 2px;
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.btn-outline:hover { border-color: #C41E3A; color: #C41E3A; }
+
+/* ── Animations ───────────────────────────────────────────── */
+@keyframes fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+@keyframes spin   { to { transform: rotate(360deg); } }
+@keyframes slideIn { from { opacity:0; transform:translateX(-8px); } to { opacity:1; transform:translateX(0); } }
+
+.fade-up   { animation: fadeUp 0.35s ease forwards; }
+.fade-up-1 { animation: fadeUp 0.35s 0.08s ease both; }
+.fade-up-2 { animation: fadeUp 0.35s 0.16s ease both; }
+.fade-up-3 { animation: fadeUp 0.35s 0.24s ease both; }
+.slide-in  { animation: slideIn 0.25s ease forwards; }
+
+/* ── Recharts tooltip ─────────────────────────────────────── */
+.recharts-tooltip-wrapper { font-family: 'IBM Plex Sans', sans-serif !important; }

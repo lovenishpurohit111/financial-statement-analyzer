@@ -1,215 +1,178 @@
 import React from 'react';
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend, LineChart, Line,
-} from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, ReferenceLine, Legend } from 'recharts';
 
-const COLORS = ['#34d399','#22d3ee','#fbbf24','#fb7185','#a78bfa','#f97316','#38bdf8','#4ade80'];
+const fmtK = n => { if(n==null||isNaN(n)) return '$0'; const a=Math.abs(n); return a>=1e6?`${n<0?'-':''}$${(a/1e6).toFixed(1)}M`:a>=1e3?`${n<0?'-':''}$${(a/1e3).toFixed(0)}K`:`${n<0?'-':''}$${a.toFixed(0)}`; };
 
-const fmtK = (n) => {
-  if (Math.abs(n) >= 1e6) return `$${(n/1e6).toFixed(1)}M`;
-  if (Math.abs(n) >= 1e3) return `$${(n/1e3).toFixed(0)}K`;
-  return `$${n.toFixed(0)}`;
-};
+const PIE_COLORS = ['#C41E3A','#1E40AF','#1B6535','#B45309','#7C3AED','#0891B2','#BE123C','#1D4ED8'];
 
-const TT = ({ active, payload, label }) => {
-  if (!active || !payload?.length) return null;
+const TT = ({active,payload,label}) => {
+  if (!active||!payload?.length) return null;
   return (
-    <div style={{ background:'#0f172a', border:'1px solid #334155', borderRadius:8, padding:'10px 14px', fontFamily:'DM Sans' }}>
-      {label && <p style={{ color:'#64748b', fontSize:11, fontFamily:'JetBrains Mono', marginBottom:6 }}>{label}</p>}
-      {payload.map((p, i) => (
-        <div key={i} style={{ display:'flex', justifyContent:'space-between', gap:16, marginBottom:2 }}>
-          <span style={{ color:p.color||'#94a3b8', fontSize:12 }}>{p.name}</span>
-          <span style={{ color:p.color||'#e2e8f0', fontSize:13, fontFamily:'JetBrains Mono', fontWeight:700 }}>{fmtK(p.value)}</span>
+    <div style={{background:'#1A1009',border:'1px solid #3D3525',borderRadius:3,padding:'10px 14px',fontFamily:'IBM Plex Sans'}}>
+      {label && <p style={{color:'#8A7F70',fontSize:11,fontFamily:'IBM Plex Mono',marginBottom:6}}>{label}</p>}
+      {payload.map((p,i) => (
+        <div key={i} style={{display:'flex',justifyContent:'space-between',gap:20,marginBottom:2}}>
+          <span style={{color:p.color||'#C4BAA8',fontSize:12}}>{p.name}</span>
+          <span style={{color:p.color||'#F7F4EE',fontSize:13,fontFamily:'IBM Plex Mono',fontWeight:600}}>{fmtK(p.value)}</span>
         </div>
       ))}
     </div>
   );
 };
 
-function ChartCard({ title, subtitle, children }) {
+function Section({title,children}) {
   return (
-    <div className="glass p-5">
-      <h3 className="text-white font-semibold mb-1" style={{ fontFamily:'DM Serif Display', fontSize:'1.05rem' }}>{title}</h3>
-      {subtitle && <p className="text-slate-500 text-xs font-mono mb-4">{subtitle}</p>}
+    <div style={{background:'#FFFFFF',border:'1px solid #E2DDD4',borderTop:'3px solid #1A1009',padding:'20px 20px 16px',borderRadius:'0 0 4px 4px'}}>
+      <h3 className="headline" style={{fontSize:16,margin:'0 0 4px'}}>{title}</h3>
       {children}
     </div>
   );
 }
 
-function RevenueVsExpenses({ pl }) {
+function RevenueExpenses({pl}) {
   if (!pl?.summary) return null;
   const s = pl.summary;
   const data = [
-    { name:'Revenue', value: s.total_revenue },
-    { name:'COGS', value: s.total_cogs },
-    { name:'Operating Exp', value: s.total_op_expenses },
-    { name:'Other Exp', value: s.total_other_expenses },
-    { name:'Net Profit', value: s.net_profit },
-  ].filter(d => d.value !== 0);
-
+    {name:'Revenue',  value:s.total_revenue,    fill:'#1B6535'},
+    {name:'COGS',     value:s.total_cogs,        fill:'#C41E3A'},
+    {name:'Op. Exp',  value:s.total_op_expenses, fill:'#E8536A'},
+    {name:'Net Profit',value:s.net_profit,       fill:s.net_profit>=0?'#1B6535':'#C41E3A'},
+  ].filter(d=>d.value!==0);
   return (
-    <ChartCard title="Revenue vs Expenses" subtitle="P&L breakdown">
+    <Section title="Revenue vs Expenses">
+      <p style={{margin:'0 0 16px',fontSize:11,color:'#8A7F70',fontFamily:'IBM Plex Mono'}}>P&L BREAKDOWN</p>
       <ResponsiveContainer width="100%" height={220}>
-        <BarChart data={data} margin={{ top:4, right:4, left:-10, bottom:0 }} barSize={30}>
-          <defs>
-            <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#34d399" /><stop offset="100%" stopColor="#22d3ee" />
-            </linearGradient>
-            <linearGradient id="barNeg" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#fb7185" /><stop offset="100%" stopColor="#f43f5e" />
-            </linearGradient>
-          </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-          <XAxis dataKey="name" tick={{ fill:'#64748b', fontSize:10, fontFamily:'DM Sans' }} axisLine={false} tickLine={false} />
-          <YAxis tickFormatter={fmtK} tick={{ fill:'#64748b', fontSize:9, fontFamily:'JetBrains Mono' }} axisLine={false} tickLine={false} />
-          <Tooltip content={<TT />} cursor={{ fill:'rgba(51,65,85,0.2)' }} />
-          <Bar dataKey="value" radius={[6,6,0,0]}>
-            {data.map((d, i) => <Cell key={i} fill={d.value >= 0 ? 'url(#barGrad)' : 'url(#barNeg)'} />)}
+        <BarChart data={data} margin={{top:4,right:4,left:-10,bottom:0}} barSize={32}>
+          <CartesianGrid strokeDasharray="2 4" stroke="#EDE9DF" vertical={false}/>
+          <XAxis dataKey="name" tick={{fill:'#8A7F70',fontSize:11,fontFamily:'IBM Plex Sans'}} axisLine={{stroke:'#E2DDD4'}} tickLine={false}/>
+          <YAxis tickFormatter={fmtK} tick={{fill:'#8A7F70',fontSize:9,fontFamily:'IBM Plex Mono'}} axisLine={false} tickLine={false}/>
+          <Tooltip content={<TT/>} cursor={{fill:'rgba(26,16,9,0.04)'}}/>
+          <Bar dataKey="value" radius={[3,3,0,0]}>
+            {data.map((d,i) => <Cell key={i} fill={d.fill}/>)}
           </Bar>
         </BarChart>
       </ResponsiveContainer>
-    </ChartCard>
+    </Section>
   );
 }
 
-function ExpensePie({ pl }) {
-  if (!pl?.breakdown) return null;
-  const items = [
-    ...pl.breakdown.cogs.map(i => ({ name: i.label, value: i.value })),
-    ...pl.breakdown.operating_expenses.map(i => ({ name: i.label, value: i.value })),
-  ].filter(d => d.value > 0).slice(0, 8);
-
+function ExpensePie({pl}) {
+  const items = [...(pl?.breakdown?.cogs||[]),...(pl?.breakdown?.operating_expenses||[])].filter(d=>d.value>0).slice(0,8);
   if (!items.length) return null;
-
   return (
-    <ChartCard title="Expense Composition" subtitle="By line item">
-      <ResponsiveContainer width="100%" height={220}>
+    <Section title="Expense Breakdown">
+      <p style={{margin:'0 0 16px',fontSize:11,color:'#8A7F70',fontFamily:'IBM Plex Mono'}}>BY CATEGORY</p>
+      <ResponsiveContainer width="100%" height={200}>
         <PieChart>
-          <Pie data={items} cx="50%" cy="50%" innerRadius={55} outerRadius={90}
-            paddingAngle={3} dataKey="value"
-            label={({ percent }) => percent > 0.07 ? `${(percent*100).toFixed(0)}%` : ''}
-            labelLine={false}>
-            {items.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} stroke="rgba(0,0,0,0.2)" strokeWidth={2} />)}
+          <Pie data={items} cx="50%" cy="50%" innerRadius={52} outerRadius={88} paddingAngle={2} dataKey="value"
+            label={({percent}) => percent>0.07?`${(percent*100).toFixed(0)}%`:''} labelLine={false}>
+            {items.map((_,i) => <Cell key={i} fill={PIE_COLORS[i%PIE_COLORS.length]} strokeWidth={0}/>)}
           </Pie>
-          <Tooltip content={<TT />} />
+          <Tooltip content={<TT/>}/>
         </PieChart>
       </ResponsiveContainer>
-      <div className="mt-2 grid grid-cols-2 gap-1">
-        {items.slice(0,6).map((d, i) => (
-          <div key={i} className="flex items-center gap-1.5 text-xs">
-            <div style={{ width:6, height:6, borderRadius:'50%', background:COLORS[i%COLORS.length], flexShrink:0 }} />
-            <span className="text-slate-400 truncate">{d.name}</span>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'4px 12px',marginTop:8}}>
+        {items.slice(0,6).map((d,i) => (
+          <div key={i} style={{display:'flex',alignItems:'center',gap:6,fontSize:11}}>
+            <div style={{width:8,height:8,borderRadius:2,background:PIE_COLORS[i%PIE_COLORS.length],flexShrink:0}}/>
+            <span style={{color:'#3D3525',fontFamily:'IBM Plex Sans',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{d.label}</span>
           </div>
         ))}
       </div>
-    </ChartCard>
+    </Section>
   );
 }
 
-function AssetsLiabilitiesBar({ bs }) {
+function BSStructure({bs}) {
   if (!bs?.summary) return null;
   const s = bs.summary;
-  const data = [
-    { name:'Current Assets', value: s.current_assets },
-    { name:'Fixed Assets',   value: s.fixed_assets },
-    { name:'Other Assets',   value: s.other_assets },
-    { name:'Current Liab',   value: s.current_liabilities },
-    { name:'LT Liab',        value: s.long_term_liabilities },
-    { name:'Equity',         value: s.equity },
-  ].filter(d => d.value > 0);
-
+  const data = [{name:'Cur. Assets',value:s.current_assets,fill:'#1B6535'},{name:'Fixed',value:s.fixed_assets,fill:'#2D9150'},{name:'Other Assets',value:s.other_assets,fill:'#4ADE80'},{name:'Cur. Liab',value:s.current_liabilities,fill:'#C41E3A'},{name:'LT Liab',value:s.long_term_liabilities,fill:'#E8536A'},{name:'Equity',value:s.equity,fill:'#1E40AF'}].filter(d=>d.value>0);
   return (
-    <ChartCard title="Balance Sheet Structure" subtitle="Assets vs Liabilities vs Equity">
-      <ResponsiveContainer width="100%" height={220}>
-        <BarChart data={data} margin={{ top:4, right:4, left:-10, bottom:0 }} barSize={28}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-          <XAxis dataKey="name" tick={{ fill:'#64748b', fontSize:9, fontFamily:'DM Sans' }} axisLine={false} tickLine={false} />
-          <YAxis tickFormatter={fmtK} tick={{ fill:'#64748b', fontSize:9, fontFamily:'JetBrains Mono' }} axisLine={false} tickLine={false} />
-          <Tooltip content={<TT />} cursor={{ fill:'rgba(51,65,85,0.2)' }} />
-          <Bar dataKey="value" radius={[6,6,0,0]}>
-            {data.map((d, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-          </Bar>
+    <Section title="Balance Sheet Structure">
+      <p style={{margin:'0 0 16px',fontSize:11,color:'#8A7F70',fontFamily:'IBM Plex Mono'}}>ASSETS · LIABILITIES · EQUITY</p>
+      <ResponsiveContainer width="100%" height={200}>
+        <BarChart data={data} margin={{top:4,right:4,left:-10,bottom:0}} barSize={28}>
+          <CartesianGrid strokeDasharray="2 4" stroke="#EDE9DF" vertical={false}/>
+          <XAxis dataKey="name" tick={{fill:'#8A7F70',fontSize:9,fontFamily:'IBM Plex Sans'}} axisLine={{stroke:'#E2DDD4'}} tickLine={false}/>
+          <YAxis tickFormatter={fmtK} tick={{fill:'#8A7F70',fontSize:9,fontFamily:'IBM Plex Mono'}} axisLine={false} tickLine={false}/>
+          <Tooltip content={<TT/>} cursor={{fill:'rgba(26,16,9,0.04)'}}/>
+          <Bar dataKey="value" radius={[3,3,0,0]}>{data.map((d,i)=><Cell key={i} fill={d.fill}/>)}</Bar>
         </BarChart>
       </ResponsiveContainer>
-    </ChartCard>
+    </Section>
   );
 }
 
-function CashFlowBar({ cashFlow }) {
-  if (!cashFlow) return null;
-  const data = [
-    { name:'Operating', value: cashFlow.operating },
-    { name:'Investing',  value: cashFlow.investing },
-    { name:'Net CF',     value: cashFlow.net_cash_flow },
-  ].filter(d => d.value != null);
-
-  return (
-    <ChartCard title="Estimated Cash Flow" subtitle="Indirect method · approximated">
-      <ResponsiveContainer width="100%" height={180}>
-        <BarChart data={data} margin={{ top:4, right:4, left:-10, bottom:0 }} barSize={36}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-          <XAxis dataKey="name" tick={{ fill:'#64748b', fontSize:11, fontFamily:'DM Sans' }} axisLine={false} tickLine={false} />
-          <YAxis tickFormatter={fmtK} tick={{ fill:'#64748b', fontSize:9, fontFamily:'JetBrains Mono' }} axisLine={false} tickLine={false} />
-          <Tooltip content={<TT />} cursor={{ fill:'rgba(51,65,85,0.2)' }} />
-          <Bar dataKey="value" radius={[6,6,0,0]}>
-            {data.map((d, i) => <Cell key={i} fill={d.value >= 0 ? '#34d399' : '#fb7185'} />)}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
-      <p className="text-slate-600 text-xs mt-2">{cashFlow.notes}</p>
-    </ChartCard>
-  );
-}
-
-function RatioRadar({ pl, bs }) {
+function RatioPanel({pl,bs}) {
   const data = [];
   if (pl?.ratios) {
     const r = pl.ratios;
-    data.push({ metric:'Net Margin', value: Math.max(0, r.net_profit_margin), max:30 });
-    data.push({ metric:'Gross Margin', value: Math.max(0, r.gross_margin), max:80 });
+    data.push({metric:'Net Margin',    value:Math.max(0,r.net_profit_margin??0),  max:30,  unit:'%', goodAbove:10});
+    data.push({metric:'Gross Margin',  value:Math.max(0,r.gross_margin??0),       max:80,  unit:'%', goodAbove:30});
+    data.push({metric:'Expense Ratio', value:Math.max(0,r.expense_ratio??0),      max:100, unit:'%', goodBelow:80});
   }
   if (bs?.ratios) {
     const r = bs.ratios;
-    if (r.current_ratio) data.push({ metric:'Current Ratio', value: Math.min(r.current_ratio*20, 100), max:100 });
+    if (r.current_ratio!=null) data.push({metric:'Current Ratio',   value:r.current_ratio,  max:4, unit:'x', goodAbove:1.5});
+    if (r.debt_to_equity!=null) data.push({metric:'Debt-to-Equity', value:r.debt_to_equity, max:4, unit:'x', goodBelow:1.5});
   }
   if (!data.length) return null;
-
   return (
-    <ChartCard title="Key Ratios" subtitle="Normalized 0–100 scale">
-      <div className="space-y-3 mt-2">
-        {data.map((d, i) => {
-          const pct = Math.min((d.value / d.max) * 100, 100);
+    <Section title="Key Ratios">
+      <p style={{margin:'0 0 16px',fontSize:11,color:'#8A7F70',fontFamily:'IBM Plex Mono'}}>PERFORMANCE INDICATORS</p>
+      <div style={{display:'flex',flexDirection:'column',gap:14}}>
+        {data.map((d,i) => {
+          const pct = Math.min((d.value/d.max)*100, 100);
+          const isGood = d.goodAbove!=null ? d.value>=d.goodAbove : d.goodBelow!=null ? d.value<=d.goodBelow : true;
+          const color = isGood ? '#1B6535' : '#C41E3A';
           return (
             <div key={i}>
-              <div className="flex justify-between text-xs mb-1">
-                <span className="text-slate-400">{d.metric}</span>
-                <span className="font-mono text-slate-300">{d.value.toFixed(1)}{d.metric.includes('Ratio') ? 'x' : '%'}</span>
+              <div style={{display:'flex',justifyContent:'space-between',marginBottom:5}}>
+                <span style={{fontSize:12,color:'#3D3525',fontFamily:'IBM Plex Sans'}}>{d.metric}</span>
+                <span style={{fontSize:12,fontFamily:'IBM Plex Mono',fontWeight:600,color}}>{d.value.toFixed(1)}{d.unit}</span>
               </div>
-              <div style={{ height:6, background:'#1e293b', borderRadius:3, overflow:'hidden' }}>
-                <div style={{ width:`${pct}%`, height:'100%', borderRadius:3, background:`linear-gradient(90deg,${COLORS[i % COLORS.length]},${COLORS[(i+1) % COLORS.length]})`, transition:'width 0.8s ease' }} />
+              <div style={{height:5,background:'#EDE9DF',borderRadius:2,overflow:'hidden'}}>
+                <div style={{width:`${pct}%`,height:'100%',background:color,borderRadius:2,transition:'width 0.8s ease'}}/>
               </div>
             </div>
           );
         })}
       </div>
-    </ChartCard>
+    </Section>
   );
 }
 
-export default function ChartsPanel({ results }) {
-  // BUG FIX: type-check before assigning to avoid P&L data being treated as BS
-  const pl  = results?.pl_analysis || (results?.analysis?.type === 'pl' ? results.analysis : null);
-  const bs  = results?.bs_current  || (results?.analysis?.type === 'bs' ? results.analysis : null);
-  const cf  = results?.cash_flow;
-
+function CashFlowChart({cf}) {
+  if (!cf) return null;
+  const data = [{name:'Operating',value:cf.operating},{name:'Investing',value:cf.investing},{name:'Net CF',value:cf.net_cash_flow}].filter(d=>d.value!=null);
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-      {pl?.type === 'pl' && <RevenueVsExpenses pl={pl} />}
-      {pl?.type === 'pl' && <ExpensePie pl={pl} />}
-      {bs?.type === 'bs' && <AssetsLiabilitiesBar bs={bs} />}
-      {cf && <CashFlowBar cashFlow={cf} />}
-      <RatioRadar pl={pl?.type === 'pl' ? pl : null} bs={bs?.type === 'bs' ? bs : null} />
+    <Section title="Cash Flow Estimate">
+      <p style={{margin:'0 0 4px',fontSize:11,color:'#8A7F70',fontFamily:'IBM Plex Mono'}}>INDIRECT METHOD · APPROXIMATED</p>
+      <ResponsiveContainer width="100%" height={180}>
+        <BarChart data={data} margin={{top:4,right:4,left:-10,bottom:0}} barSize={40}>
+          <CartesianGrid strokeDasharray="2 4" stroke="#EDE9DF" vertical={false}/>
+          <XAxis dataKey="name" tick={{fill:'#8A7F70',fontSize:11}} axisLine={{stroke:'#E2DDD4'}} tickLine={false}/>
+          <YAxis tickFormatter={fmtK} tick={{fill:'#8A7F70',fontSize:9,fontFamily:'IBM Plex Mono'}} axisLine={false} tickLine={false}/>
+          <Tooltip content={<TT/>} cursor={{fill:'rgba(26,16,9,0.04)'}}/>
+          <Bar dataKey="value" radius={[3,3,0,0]}>{data.map((d,i)=><Cell key={i} fill={d.value>=0?'#1B6535':'#C41E3A'}/>)}</Bar>
+        </BarChart>
+      </ResponsiveContainer>
+      <p style={{margin:'8px 0 0',fontSize:11,color:'#C4BAA8',fontFamily:'IBM Plex Sans'}}>{cf.notes}</p>
+    </Section>
+  );
+}
+
+export default function ChartsPanel({results}) {
+  const pl = results?.pl_analysis||(results?.analysis?.type==='pl'?results.analysis:null);
+  const bs = results?.bs_current ||(results?.analysis?.type==='bs'?results.analysis:null);
+  const cf = results?.cash_flow;
+  return (
+    <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))',gap:16}}>
+      {pl?.type==='pl' && <RevenueExpenses pl={pl}/>}
+      {pl?.type==='pl' && <ExpensePie pl={pl}/>}
+      {bs?.type==='bs' && <BSStructure bs={bs}/>}
+      {cf && <CashFlowChart cf={cf}/>}
+      <RatioPanel pl={pl?.type==='pl'?pl:null} bs={bs?.type==='bs'?bs:null}/>
     </div>
   );
 }
