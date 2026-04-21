@@ -364,20 +364,27 @@ def _build_pl_sheet(wb, pl_data):
     cogs_ref   = formula_cells.get("Cost of Goods Sold", f"={s.get('total_cogs',0)}")
     exp_ref    = formula_cells.get("TOTAL EXPENSES", f"={s.get('total_cogs',0)+s.get('total_op_expenses',0)}")
 
+    # Build ratio rows using real Excel cell-reference formulas
+    # rev_ref, net_ref etc. are like "B6", "B14" — actual cell addresses in this sheet
+    total_rev = s.get('total_revenue', 1) or 1
     ratio_rows = [
-        ("Gross Margin",      f"=(B6-{cogs_ref})/{rev_ref}",     '0.0%',   "> 30%",  r.get('gross_margin',0)>=30,    f"=(Gross Revenue−COGS)/Revenue"),
-        ("Net Profit Margin", f"={net_ref}/{rev_ref}",           '0.0%',   "> 10%",  r.get('net_profit_margin',0)>=10, f"=Net Profit/Revenue"),
-        ("Expense Ratio",     f"={exp_ref}/{rev_ref}",           '0.0%',   "< 80%",  r.get('expense_ratio',0)<80,     f"=Total Expenses/Revenue"),
-        ("COGS Ratio",        f"={cogs_ref}/{rev_ref}",          '0.0%',   "< 40%",  r.get('cogs_ratio',0)<40,        f"=COGS/Revenue"),
+        ("Gross Margin",      f"=({rev_ref}-{cogs_ref})/{rev_ref}",  '0.0%', "> 30%", r.get('gross_margin',0)>=30,     "(Gross Revenue - COGS) / Revenue"),
+        ("Net Profit Margin", f"={net_ref}/{rev_ref}",               '0.0%', "> 10%", r.get('net_profit_margin',0)>=10, "Net Profit / Revenue"),
+        ("Expense Ratio",     f"={exp_ref}/{rev_ref}",               '0.0%', "< 80%", r.get('expense_ratio',0)<80,      "Total Expenses / Revenue"),
+        ("COGS Ratio",        f"={cogs_ref}/{rev_ref}",              '0.0%', "< 40%", r.get('cogs_ratio',0)<40,         "COGS / Revenue"),
     ]
     for label, formula, fmt, bench, ok, formula_desc in ratio_rows:
         bg = C_GREEN_BG if ok else C_ROSE; vc = C_FOREST if ok else C_CRIMSON
         _set(ws, data_row, 1, label, size=10, bg=bg)
         c = ws.cell(row=data_row, column=2, value=formula)
-        c.number_format=fmt; c.font=_font(bold=True,size=10,color=vc); c.fill=_fill(bg); c.alignment=_align(h="right")
-        _set(ws, data_row, 3, bench, size=9, color=C_MUTED, bg=bg, align="center")
-        _set(ws, data_row, 4, "✓" if ok else "✗", size=10, color=vc, bg=bg, align="center", bold=True)
-        _set(ws, data_row, 5, formula_desc, size=9, color=C_MUTED, bg=bg, italic=True)
+        c.number_format = fmt
+        c.font = _font(bold=True, size=10, color=vc)
+        c.fill = _fill(bg); c.alignment = _align(h="right")
+        _set(ws, data_row, 3, bench,                   size=9,  color=C_MUTED, bg=bg, align="center")
+        _set(ws, data_row, 4, "✓" if ok else "✗",     size=10, color=vc,      bg=bg, align="center", bold=True)
+        # Plain text description — must NOT start with = or Excel treats it as a formula
+        c5 = ws.cell(row=data_row, column=5, value=formula_desc)
+        c5.font = _font(size=9, color=C_MUTED, italic=True); c5.fill = _fill(bg)
         ws.row_dimensions[data_row].height = 15; data_row += 1
 
     # Bar chart
@@ -465,10 +472,10 @@ def _build_bs_sheet(wb, bs_data):
     eq=formula_cells.get("Total Equity","0")
 
     ratio_rows = [
-        ("Current Ratio",    f"=IF({cl}=0,\"N/A\",{ca}/{cl})",       '0.00"x"',">1.5x", r.get('current_ratio',0)>=1.5 if r.get('current_ratio') else False, f"=Current Assets/Current Liabilities"),
-        ("Debt-to-Equity",   f"=IF({eq}=0,\"N/A\",{tl}/{eq})",       '0.00"x"',"<1.5x", (r.get('debt_to_equity',99) or 99)<=1.5, "=Total Liabilities/Equity"),
-        ("Debt-to-Assets",   f"=IF({ta}=0,\"N/A\",{tl}/{ta})",       '0.00"x"',"<0.5x", (r.get('debt_to_assets',99) or 99)<=0.5, "=Total Liabilities/Total Assets"),
-        ("Equity Ratio",     f"=IF({ta}=0,\"N/A\",{eq}/{ta})",       '0.0%',   ">50%",  (r.get('equity_ratio',0) or 0)>=50, "=Equity/Total Assets"),
+        ("Current Ratio",    f"=IF({cl}=0,\"N/A\",{ca}/{cl})",       '0.00"x"', ">1.5x", r.get('current_ratio',0)>=1.5 if r.get('current_ratio') else False, "Current Assets / Current Liabilities"),
+        ("Debt-to-Equity",   f"=IF({eq}=0,\"N/A\",{tl}/{eq})",       '0.00"x"', "<1.5x", (r.get('debt_to_equity',99) or 99)<=1.5, "Total Liabilities / Equity"),
+        ("Debt-to-Assets",   f"=IF({ta}=0,\"N/A\",{tl}/{ta})",       '0.00"x"', "<0.5x", (r.get('debt_to_assets',99) or 99)<=0.5, "Total Liabilities / Total Assets"),
+        ("Equity Ratio",     f"=IF({ta}=0,\"N/A\",{eq}/{ta})",       '0.0%',    ">50%",  (r.get('equity_ratio',0) or 0)>=50, "Equity / Total Assets"),
     ]
     for label, formula, fmt, bench, ok, formula_desc in ratio_rows:
         bg = C_GREEN_BG if ok else C_ROSE; vc = C_FOREST if ok else C_CRIMSON
