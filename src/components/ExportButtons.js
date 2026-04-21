@@ -10,7 +10,7 @@ function Spinner({ color = '#C41E3A' }) {
   );
 }
 
-export default function ExportButtons({ results, monthlyData, dashboardRef }) {
+export default function ExportButtons({ results, monthlyData, dashboardRef, sourceFile }) {
   const [excelLoading, setExcelLoading] = useState(false);
   const [pdfLoading,   setPdfLoading]   = useState(false);
   const [error,        setError]        = useState(null);
@@ -29,10 +29,17 @@ export default function ExportButtons({ results, monthlyData, dashboardRef }) {
     if (!hasData) return;
     setExcelLoading(true); setError(null); setSuccess(null);
     try {
+      // Build multipart form — pass results as JSON string + optional source file
+      const form = new FormData();
+      form.append('results', JSON.stringify(results));
+      form.append('monthly_data', monthlyData ? JSON.stringify(monthlyData) : 'null');
+      // Attach source file if stored in component props
+      if (sourceFile) form.append('source_file', sourceFile);
       const res = await axios.post(
         `${API}/export/excel`,
-        { results, monthly_data: monthlyData || null },
-        { responseType: 'blob', timeout: 30000 }
+        form,
+        { responseType: 'blob', timeout: 60000,
+          headers: { 'Content-Type': 'multipart/form-data' } }
       );
       const url  = URL.createObjectURL(new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
       const a    = document.createElement('a');

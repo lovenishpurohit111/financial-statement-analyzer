@@ -1,6 +1,7 @@
 import sys, os
 sys.path.insert(0, os.path.dirname(__file__))
 
+import fastapi
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -18,14 +19,29 @@ PL_TITLE_KW   = ["profit", "loss", "income statement", "p&l", "p & l"]
 BS_TITLE_KW   = ["balance sheet", "statement of financial position"]
 PL_SECTION_KW = ["income", "revenue", "sales", "expenses", "cost of goods", "cogs", "gross profit"]
 BS_SECTION_KW = ["assets", "liabilities", "equity", "stockholder", "shareholder"]
-SUBTOTAL_PFXS = ["total", "net ", "gross profit", "gross loss", "net income", "net loss",
-                  "total income", "total expenses", "total revenue", "total assets",
-                  "total liabilities", "total equity", "total current", "total fixed",
-                  "total other", "total cost", "total operating", "net operating",
-                  "liabilities and equity", "total liabilities and equity",
-                  "total stockholder", "total shareholder"]
+# P&L subtotals — rows to skip when parsing P&L
+PL_SUBTOTAL_PFXS = [
+    "total", "gross profit", "gross loss", "net income", "net loss",
+    "total income", "total expenses", "total revenue", "total cost",
+    "total operating", "net operating",
+]
+# Balance Sheet subtotals — 'net income' is NOT here because it's a real equity line item
+BS_SUBTOTAL_PFXS = [
+    "total", "liabilities and equity",
+    "total liabilities and equity", "total stockholder", "total shareholder",
+    "total assets", "total liabilities", "total equity", "total current",
+    "total fixed", "total other",
+]
+# Shared — used when context unknown
+SUBTOTAL_PFXS = PL_SUBTOTAL_PFXS + ["liabilities and equity","total liabilities and equity",
+                                      "total assets","total liabilities","total equity",
+                                      "total current","total fixed","total other",
+                                      "total stockholder","total shareholder"]
 
-def _is_sub(label): return any(label.strip().lower().startswith(p) for p in SUBTOTAL_PFXS)
+def _is_sub(label, mode='shared'):
+    ll = label.strip().lower()
+    pfxs = PL_SUBTOTAL_PFXS if mode=='pl' else BS_SUBTOTAL_PFXS if mode=='bs' else SUBTOTAL_PFXS
+    return any(ll.startswith(p) for p in pfxs)
 
 def _val(v):
     if v is None: return None
@@ -91,7 +107,7 @@ def parse_pl(df):
         lbl, ll, v = r['label'], r['label'].lower(), r['value']
         if period is None and re.search(r'\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|\d{4})\b', ll) and v is None:
             period = lbl; continue
-        if _is_sub(lbl): continue
+        if _is_sub(lbl, 'pl'): continue
         if v is None:
             s = _pl_sec(ll)
             if s: cur = s
@@ -104,16 +120,26 @@ def parse_pl(df):
 def parse_bs(df):
     secs = {k:[] for k in ['current_assets','fixed_assets','other_assets','current_liabilities','long_term_liabilities','equity']}
     cur = None; period = None
+    # Assets and liabilities in QB are always positive; equity items CAN be negative
+    POSITIVE_SECS = ('current_assets','fixed_assets','other_assets','current_liabilities','long_term_liabilities')
     for r in _rows(df):
         lbl, ll, v = r['label'], r['label'].lower(), r['value']
         if period is None and re.search(r'\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|\d{4})\b', ll) and v is None:
             period = lbl; continue
-        if _is_sub(lbl): continue
         if v is None:
+            # Only skip subtotal/header rows that have NO value
+            # Use BS-specific list — does NOT contain 'net income' (which is a real equity line item)
+            if _is_sub(lbl, 'bs'): continue
             s = _bs_sec(ll)
             if s: cur = s
             continue
-        if cur and v != 0: secs[cur].append({'label': lbl, 'value': round(abs(v), 2)})
+        # Row HAS a numeric value — only skip explicit QB aggregation rows ("Total for X")
+        # Never skip line items just because of name pattern — e.g. "Net Income" has a value
+        if ll.startswith('total for') or ll.startswith('total liabilities and') or ll in ('total assets','total liabilities','total equity'):
+            continue
+        if cur and v != 0:
+            val = round(abs(v), 2) if cur in POSITIVE_SECS else round(v, 2)  # preserve equity signs!
+            secs[cur].append({'label': lbl, 'value': val})
     return {'type':'bs','sections':secs,'period': period or 'N/A'}
 
 def parse_file(contents, filename):
@@ -755,7 +781,7 @@ def parse_pl_monthly(contents, filename):
         label_l = label.lower()
 
         # Detect section — use startswith/contains for robustness with QB headers
-        if _is_sub(label_l): continue
+        if _is_sub(label_l, 'bs'): continue
         stripped = label_l.strip()
         if stripped in ('income', 'revenue', 'sales') or re.match(r'^(income|revenue|sales)\b', stripped):
             current_section = 'income'; continue
@@ -1054,11 +1080,20 @@ class ExportReq(BaseModel):
     monthly_data: Optional[dict] = None
 
 @app.post("/api/export/excel")
-def export_excel(req: ExportReq):
-    """Generate a fully-formatted multi-sheet Excel workbook."""
+async def export_excel(
+    results: str = fastapi.Form(...),
+    monthly_data: str = fastapi.Form(None),
+    source_file: UploadFile = fastapi.File(None),
+):
+    """Generate fully-formatted multi-sheet Excel workbook with optional raw source file."""
+    import json as _json
     try:
         from excel_export import generate_excel
-        xlsx_bytes = generate_excel(req.results, req.monthly_data)
+        results_dict = _json.loads(results)
+        monthly_dict = _json.loads(monthly_data) if monthly_data and monthly_data != 'null' else None
+        raw_bytes = await source_file.read() if source_file else None
+        raw_name  = source_file.filename if source_file else None
+        xlsx_bytes = generate_excel(results_dict, monthly_dict, raw_bytes, raw_name)
         return StreamingResponse(
             io.BytesIO(xlsx_bytes),
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

@@ -7,7 +7,8 @@ export default function App() {
   const [page, setPage]       = useState('upload');
   const [results, setResults] = useState(null);
 
-  const handleAnalysisDone = (data) => { setResults(data); setPage('dashboard'); };
+  const [sourceFiles, setSourceFiles] = useState({});
+  const handleAnalysisDone = (data, files) => { setResults(data); if(files) setSourceFiles(files); setPage('dashboard'); };
   const handleReset        = () => { setResults(null); setPage('upload'); };
 
   return (
@@ -15,7 +16,7 @@ export default function App() {
       <AppNav currentApp="fsa" />
       {page === 'upload'
         ? <UploadPage onAnalysisDone={handleAnalysisDone} />
-        : <Dashboard results={results} onReset={handleReset} />
+        : <Dashboard results={results} sourceFiles={sourceFiles} onReset={handleReset} />
       }
     </div>
   );

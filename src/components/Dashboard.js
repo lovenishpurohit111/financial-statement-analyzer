@@ -95,7 +95,7 @@ function BSComp({comp,prev}) {
 
 const TABS = [{id:'overview',label:'Overview'},{id:'insights',label:'Insights'},{id:'breakdown',label:'Breakdown'},{id:'tax',label:'Tax'}];
 
-export default function Dashboard({results,onReset}) {
+export default function Dashboard({results,onReset,sourceFiles}) {
   const [tab, setTab] = useState('overview');
   const dashboardRef = useRef(null);
   const pl   = results?.pl_analysis||(results?.analysis?.type==='pl'?results.analysis:null);
@@ -123,7 +123,7 @@ export default function Dashboard({results,onReset}) {
           </div>
         </div>
         <div style={{display:'flex',alignItems:'center',gap:12}}>
-          <ExportButtons results={results} dashboardRef={dashboardRef} />
+          <ExportButtons results={results} dashboardRef={dashboardRef} sourceFile={sourceFiles?.pl || sourceFiles?.bsCurrent || null} />
           <button onClick={onReset} className="btn-outline" style={{padding:'6px 14px',fontSize:12,letterSpacing:'0.04em'}}>
             ← NEW ANALYSIS
           </button>

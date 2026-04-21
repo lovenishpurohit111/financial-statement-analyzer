@@ -39,7 +39,7 @@ function FileSlot({ label, sublabel, slotKey, parsed, onParsed, expectedType }) 
         setError(`Expected ${expectedType === 'pl' ? 'P&L' : 'Balance Sheet'}, got: ${res.data.detected_label}. Upload the correct file.`);
         return;
       }
-      onParsed(slotKey, res.data); setError(null);
+      onParsed(slotKey, res.data, file); setError(null);
     } catch (e) {
       const d = e.response?.data?.detail;
       setError(typeof d === 'string' ? d : 'Upload failed — check file format.');
@@ -180,7 +180,13 @@ export default function UploadPage({ onAnalysisDone }) {
   const [analyzing,   setAnalyzing]   = useState(false);
   const [error,       setError]       = useState(null);
 
+  const [sourceFiles, setSourceFiles] = useState({});
   const handleParsed      = (k, v) => { setParsed(p => ({...p,[k]:v})); setError(null); };
+  const handleFileAndParsed = (k, file, v) => {
+    setParsed(p => ({...p,[k]:v}));
+    if (file) setSourceFiles(sf => ({...sf,[k]:file}));
+    setError(null);
+  };
   const handleModeChange  = (m)    => { setMode(m); setError(null); };
 
   const canAnalyze = mode === 'monthly' ? false
@@ -202,7 +208,7 @@ export default function UploadPage({ onAnalysisDone }) {
         const r = await axios.post(`${API}/analyze/bs`, { parsed_data:parsed.bsCurrent.parsed_data });
         result = { mode:'bs', ...r.data };
       }
-      onAnalysisDone(result);
+      onAnalysisDone(result, sourceFiles);
     } catch (e) {
       const d = e.response?.data?.detail;
       setError(typeof d === 'string' ? d : 'Analysis failed. Please check your files and try again.');
