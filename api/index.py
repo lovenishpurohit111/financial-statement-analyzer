@@ -1,7 +1,6 @@
 import sys, os
 sys.path.insert(0, os.path.dirname(__file__))
 
-import fastapi
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -1078,22 +1077,18 @@ async def analyze_monthly(file: UploadFile = File(...)):
 class ExportReq(BaseModel):
     results: dict
     monthly_data: Optional[dict] = None
+    # Source file encoded as base64 string so we can pass it via JSON
+    source_file_b64: Optional[str] = None
+    source_filename: Optional[str] = None
 
 @app.post("/api/export/excel")
-async def export_excel(
-    results: str = fastapi.Form(...),
-    monthly_data: str = fastapi.Form(None),
-    source_file: UploadFile = fastapi.File(None),
-):
-    """Generate fully-formatted multi-sheet Excel workbook with optional raw source file."""
-    import json as _json
+def export_excel(req: ExportReq):
+    """Generate fully-formatted multi-sheet Excel workbook."""
     try:
         from excel_export import generate_excel
-        results_dict = _json.loads(results)
-        monthly_dict = _json.loads(monthly_data) if monthly_data and monthly_data != 'null' else None
-        raw_bytes = await source_file.read() if source_file else None
-        raw_name  = source_file.filename if source_file else None
-        xlsx_bytes = generate_excel(results_dict, monthly_dict, raw_bytes, raw_name)
+        import base64
+        raw_bytes = base64.b64decode(req.source_file_b64) if req.source_file_b64 else None
+        xlsx_bytes = generate_excel(req.results, req.monthly_data, raw_bytes, req.source_filename)
         return StreamingResponse(
             io.BytesIO(xlsx_bytes),
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

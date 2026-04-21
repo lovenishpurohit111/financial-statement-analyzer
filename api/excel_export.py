@@ -689,10 +689,10 @@ def generate_excel(results: dict, monthly_data: dict = None,
 
     # Add raw source file sheet
     if raw_file_bytes:
-        _build_raw_data_sheet(wb, raw_file_bytes, raw_filename or "source_file")
+        _build_raw_data(wb, raw_file_bytes, raw_filename or "source_file")
 
     # Add formula cross-reference sheet
-    _build_formula_summary_sheet(wb)
+    _build_formulas_sheet(wb)
 
     # Remove any completely empty sheets
     sheets_to_remove = [sh.title for sh in wb.worksheets
@@ -707,7 +707,7 @@ def generate_excel(results: dict, monthly_data: dict = None,
     return buf.getvalue()
 
 
-def _build_formula_summary_sheet(wb):
+def _build_formulas_sheet(wb):
     """
     Add a Formulas & Calculations sheet that references other sheets with real Excel formulas.
     This ensures the workbook is dynamic — change a number in any data table and this updates.
@@ -735,7 +735,7 @@ def _build_formula_summary_sheet(wb):
     # ── P&L Formulas (reference P&L Data Table sheet) ────────────────────────
     if pl_sheet:
         esc_pl = pl_sheet.replace("'", "''")
-        _section_header(ws, row, 1, 5, "P&L Calculations (from P&L Data Table)")
+        _section_label(ws, row, 1, 5, "P&L Calculations (from P&L Data Table)")
         row += 1
 
         headers = ["Metric", "Formula", "Value", "Notes"]
@@ -779,7 +779,7 @@ def _build_formula_summary_sheet(wb):
             ("Expense Ratio %",      f"=IF(C{base_row+0}>0,(C{base_row+1}+C{base_row+2})/C{base_row+0},0)", "(COGS + OpEx) / Revenue"),
         ]
         for label, formula, note in margin_calcs:
-            bg = C_BLUE_BG if row % 2 == 0 else "#E8F4FD"
+            bg = C_BLUE_BG if row % 2 == 0 else "E8F4FD"
             _set(ws, row, 1, label, size=10, bg=bg, color=C_OCEAN)
             fc = ws.cell(row=row, column=2, value=formula); fc.font=_font(size=9,color=C_OCEAN,italic=True); fc.fill=_fill(bg)
             vc = ws.cell(row=row, column=3, value=formula); vc.number_format='0.0%'; vc.font=_font(size=10,bold=True,color=C_OCEAN); vc.fill=_fill(bg); vc.alignment=_align(h='right')
@@ -790,7 +790,7 @@ def _build_formula_summary_sheet(wb):
     # ── BS Formulas ───────────────────────────────────────────────────────────
     if bs_sheet:
         esc_bs = bs_sheet.replace("'","''")
-        _section_header(ws, row, 1, 5, "Balance Sheet Calculations (from BS Data Table)")
+        _section_label(ws, row, 1, 5, "Balance Sheet Calculations (from BS Data Table)")
         row += 1
         for ci, h in enumerate(["Metric","Formula","Value","Notes"], 1):
             _set(ws, row, ci, h, bold=True, size=9, bg=C_CREAM2)
@@ -828,7 +828,7 @@ def _build_formula_summary_sheet(wb):
             ("Equity Ratio %",  f"=IFERROR(C{row_eq}/C{row_ta},\"N/A\")", "0.0%", "Equity / Total Assets"),
         ]
         for label, formula, nfmt, note in ratio_calcs:
-            bg = C_BLUE_BG if row%2==0 else "#E8F4FD"
+            bg = C_BLUE_BG if row%2==0 else "E8F4FD"
             _set(ws, row, 1, label, size=10, bg=bg, color=C_OCEAN)
             fc = ws.cell(row=row,column=2,value=formula); fc.font=_font(size=9,color=C_OCEAN,italic=True); fc.fill=_fill(bg)
             vc = ws.cell(row=row,column=3,value=formula); vc.number_format=nfmt; vc.font=_font(size=10,bold=True,color=C_OCEAN); vc.fill=_fill(bg); vc.alignment=_align(h='right')

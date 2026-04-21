@@ -39,7 +39,8 @@ function FileSlot({ label, sublabel, slotKey, parsed, onParsed, expectedType }) 
         setError(`Expected ${expectedType === 'pl' ? 'P&L' : 'Balance Sheet'}, got: ${res.data.detected_label}. Upload the correct file.`);
         return;
       }
-      onParsed(slotKey, res.data, file); setError(null);
+      onParsed(slotKey, res.data, file);  // pass File object for Excel export
+      setError(null);
     } catch (e) {
       const d = e.response?.data?.detail;
       setError(typeof d === 'string' ? d : 'Upload failed — check file format.');
@@ -181,10 +182,9 @@ export default function UploadPage({ onAnalysisDone }) {
   const [error,       setError]       = useState(null);
 
   const [sourceFiles, setSourceFiles] = useState({});
-  const handleParsed      = (k, v) => { setParsed(p => ({...p,[k]:v})); setError(null); };
-  const handleFileAndParsed = (k, file, v) => {
-    setParsed(p => ({...p,[k]:v}));
-    if (file) setSourceFiles(sf => ({...sf,[k]:file}));
+  const handleParsed = (k, v, file) => {
+    setParsed(p => ({...p, [k]: v}));
+    if (file) setSourceFiles(sf => ({...sf, [k]: file}));  // store File object
     setError(null);
   };
   const handleModeChange  = (m)    => { setMode(m); setError(null); };
