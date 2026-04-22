@@ -431,12 +431,12 @@ def _build_bs_sheet(wb, bs_data):
         ("LIABILITIES",        None,    True,  C_CRIMSON, C_WHITE),
         ("Current Liabilities","=SUMIF('BS Data Table'!B:B,\"Current Liabilities\",'BS Data Table'!D:D)", False, C_ROSE, C_CRIMSON),
         ("Long-Term Liabilities","=SUMIF('BS Data Table'!B:B,\"Long-Term Liabilities\",'BS Data Table'!D:D)", False, C_ROSE, C_CRIMSON),
-        ("TOTAL LIABILITIES",  "=B9+B10", True, C_CRIMSON, C_WHITE),
+        ("TOTAL LIABILITIES",  "=B10+B11", True, C_CRIMSON, C_WHITE),
         ("",None,False,C_WHITE,C_INK),
         ("EQUITY",             None,    True,  C_AMBER,   C_WHITE),
         ("Total Equity",       "=SUMIF('BS Data Table'!A:A,\"Equity\",'BS Data Table'!D:D)", False, C_AMBER_BG, C_AMBER),
-        ("WORKING CAPITAL",    "=B4-B9", True,  C_FOREST,  C_WHITE),
-        ("ACCOUNTING CHECK",   "=B7-B11-B13", True, C_CREAM2, C_INK),
+        ("WORKING CAPITAL",    "=B4-B10", True,  C_FOREST,  C_WHITE),
+        ("ACCOUNTING CHECK",   "=B7-B12-B15", True, C_CREAM2, C_INK),
     ]
 
     data_row = 3
