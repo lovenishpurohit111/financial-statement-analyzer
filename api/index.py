@@ -81,7 +81,9 @@ def _rows(df):
 
 def _pl_sec(ll):
     if any(k in ll for k in ['income','revenue','sales','service fee','consulting']): return 'income'
-    if any(k in ll for k in ['cost of goods','cogs','cost of sales','cost of revenue']): return 'cogs'
+    # QB COGS — also catches "job materials", "materials", "subcontract", "supplies"
+    if any(k in ll for k in ['cost of goods','cogs','cost of sales','cost of revenue',
+                               'job material','material','subcontract','supplies','reimbursable']): return 'cogs'
     if any(k in ll for k in ['operating expense','expense','overhead','selling','general',
                                'administrative','sg&a','payroll','wages']): return 'operating_expenses'
     if 'other income' in ll or 'non-operating income' in ll: return 'other_income'
@@ -90,7 +92,7 @@ def _pl_sec(ll):
 
 def _bs_sec(ll):
     if 'current asset' in ll: return 'current_assets'
-    if any(k in ll for k in ['fixed asset','property','equipment','ppe','non-current asset','plant']): return 'fixed_assets'
+    if any(k in ll for k in ['fixed asset','property','equipment','ppe','non-current asset']): return 'fixed_assets'
     if 'other asset' in ll: return 'other_assets'
     if 'current liabilit' in ll: return 'current_liabilities'
     if any(k in ll for k in ['long-term liabilit','long term liabilit','non-current liabilit','mortgage','long term debt']): return 'long_term_liabilities'
@@ -102,23 +104,41 @@ def _bs_sec(ll):
 def parse_pl(df):
     secs = {k:[] for k in ['income','cogs','operating_expenses','other_income','other_expenses']}
     cur = None; period = None
+    # Track if we're in a COGS sub-group within income (e.g. "Job Materials" under "Income")
+    in_cogs_subgroup = False
     for r in _rows(df):
         lbl, ll, v = r['label'], r['label'].lower(), r['value']
         if period is None and re.search(r'\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|\d{4})\b', ll) and v is None:
             period = lbl; continue
-        if _is_sub(lbl, 'pl'): continue
+        if _is_sub(lbl, 'pl'):
+            # "Total for X" resets COGS sub-group context
+            in_cogs_subgroup = False
+            continue
         if v is None:
             s = _pl_sec(ll)
-            if s: cur = s
+            if not s: continue
+            # COGS keywords that appear WITHIN an income section are sub-groups, not top-level sections
+            # Don't override cur — instead flag that next items go to cogs
+            if s == 'cogs' and cur == 'income':
+                in_cogs_subgroup = True
+            elif s in ('income', 'operating_expenses', 'other_income', 'other_expenses'):
+                cur = s
+                in_cogs_subgroup = False
+            else:
+                # Top-level COGS section (e.g. "Cost of Goods Sold" as a main header)
+                cur = s
+                in_cogs_subgroup = False
             continue
         if v != 0:
             target = cur or _pl_sec(ll)
-            if not target:
-                continue
-            # Negative values in income section = expense (QB sometimes puts COGS as negative income)
-            if v < 0 and target == 'income':
+            if not target: continue
+            # Per-item classification:
+            # 1. Item label matches COGS keywords → goes to cogs regardless of section
+            # 2. Negative value inside income section → contra-revenue, goes to cogs
+            # 3. We're in a known COGS sub-group → cogs
+            item_sec = _pl_sec(ll)
+            if item_sec == 'cogs' or (v < 0 and target == 'income') or in_cogs_subgroup:
                 target = 'cogs'
-            # All P&L values stored as absolute — sign is conveyed by section placement
             secs[target].append({'label': lbl, 'value': round(abs(v), 2)})
     return {'type':'pl','sections':secs,'period': period or 'N/A'}
 
@@ -786,15 +806,19 @@ def parse_pl_monthly(contents, filename):
         label_l = label.lower()
 
         # Detect section — use startswith/contains for robustness with QB headers
-        if _is_sub(label_l, 'bs'): continue
+        if _is_sub(label_l, 'pl'):
+            if current_section == 'cogs_subgroup': current_section = 'income'
+            continue
         stripped = label_l.strip()
         if stripped in ('income', 'revenue', 'sales') or re.match(r'^(income|revenue|sales)\b', stripped):
             current_section = 'income'; continue
         if stripped == 'expenses' or re.match(r'^expenses?\b', stripped):
             current_section = 'expenses'; continue
-        # QB sometimes has "Cost of Goods Sold" as a section header
         if any(k in stripped for k in ['cost of goods', 'cogs', 'cost of sales']):
-            if row_vals and all(v == 0 for v in row_vals): current_section = 'cogs'; continue
+            current_section = 'cogs'; continue
+        # COGS sub-group within income (e.g. "Job Materials")
+        if current_section == 'income' and _pl_sec(stripped) == 'cogs':
+            current_section = 'cogs_subgroup'; continue
 
         # Get monthly values for this row
         row_vals = []
@@ -808,10 +832,15 @@ def parse_pl_monthly(contents, filename):
         if all(v == 0 for v in row_vals): continue
 
         # Classify by section — current_section takes priority, then label keywords
-        if current_section == 'income':
-            revenue = [r + v for r, v in zip(revenue, row_vals)]
+        if current_section in ('income', 'cogs_subgroup'):
+            # COGS-keyword label or negative value = cost item
+            label_is_cogs = _pl_sec(label_l) == 'cogs'
+            if label_is_cogs or current_section == 'cogs_subgroup' or any(v < 0 for v in row_vals):
+                expenses = [e + abs(v) for e, v in zip(expenses, row_vals)]
+            else:
+                revenue = [r + v for r, v in zip(revenue, row_vals)]
         elif current_section in ('expenses', 'cogs'):
-            expenses = [e + v for e, v in zip(expenses, row_vals)]
+            expenses = [e + abs(v) for e, v in zip(expenses, row_vals)]
         else:
             # Auto-classify from label keywords as last resort
             sec = _pl_sec(label_l)
