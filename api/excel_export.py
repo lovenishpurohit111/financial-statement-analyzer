@@ -328,10 +328,10 @@ def _build_pl_sheet(wb, pl_data):
         ("Cost of Goods Sold","=SUMIF('P&L Data Table'!B:B,\"COGS\",'P&L Data Table'!D:D)", False, C_ROSE, C_CRIMSON),
         ("Operating Expenses","=SUMIF('P&L Data Table'!B:B,\"Op. Expense\",'P&L Data Table'!D:D)", False, C_ROSE, C_CRIMSON),
         ("Other Expenses",    "=SUMIF('P&L Data Table'!B:B,\"Other Expense\",'P&L Data Table'!D:D)", False, C_ROSE, C_CRIMSON),
-        ("TOTAL EXPENSES",    "=B8+B9+B10", True, C_CRIMSON, C_WHITE),
+        ("TOTAL EXPENSES",    "=B9+B10+B11", True, C_CRIMSON, C_WHITE),
         ("",None,False,C_WHITE,C_INK),
-        ("GROSS PROFIT",      "=B6-B8",   True,  C_OCEAN,  C_WHITE),
-        ("NET PROFIT",        "=B12-B9-B10+B5", True, C_OCEAN, C_WHITE),
+        ("GROSS PROFIT",      "=B6-B9",   True,  C_OCEAN,  C_WHITE),
+        ("NET PROFIT",        "=B6-B12", True, C_OCEAN, C_WHITE),
     ]
 
     data_row = 3

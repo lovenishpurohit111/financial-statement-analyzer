@@ -113,7 +113,13 @@ def parse_pl(df):
             continue
         if v != 0:
             target = cur or _pl_sec(ll)
-            if target: secs[target].append({'label': lbl, 'value': round(abs(v), 2)})
+            if not target:
+                continue
+            # Negative values in income section = expense (QB sometimes puts COGS as negative income)
+            if v < 0 and target == 'income':
+                target = 'cogs'
+            # All P&L values stored as absolute — sign is conveyed by section placement
+            secs[target].append({'label': lbl, 'value': round(abs(v), 2)})
     return {'type':'pl','sections':secs,'period': period or 'N/A'}
 
 def parse_bs(df):
