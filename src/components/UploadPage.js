@@ -346,8 +346,117 @@ export default function UploadPage({ onAnalysisDone }) {
           </div>
         )}
 
+
+        {/* Sample file downloads */}
+        <div style={{ marginTop:40, border:'1px solid #E2DDD4', borderRadius:4, overflow:'hidden', background:'#FFFFFF' }}>
+          {/* Header */}
+          <div style={{ background:'#1A1009', padding:'16px 24px', display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:12 }}>
+            <div>
+              <p style={{ margin:'0 0 3px', fontSize:11, fontFamily:'IBM Plex Mono', color:'#C41E3A', letterSpacing:'0.1em', textTransform:'uppercase' }}>Try before you upload</p>
+              <h3 style={{ margin:0, fontFamily:'Playfair Display', fontSize:18, fontWeight:700, color:'#F7F4EE' }}>Download Sample Files</h3>
+            </div>
+            <p style={{ margin:0, fontSize:12, color:'#8A7F70', fontFamily:'IBM Plex Sans', maxWidth:360, lineHeight:1.6 }}>
+              Real-format QuickBooks export samples — load them instantly to explore every feature without needing your own data.
+            </p>
+          </div>
+
+          {/* Cards grid */}
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(220px,1fr))', gap:0 }}>
+            {[
+              {
+                file:  '/sample_pl.xlsx',
+                name:  'sample_pl.xlsx',
+                icon:  '📊',
+                title: 'Profit & Loss',
+                badge: 'Quick / Full Analysis',
+                badgeColor: '#C41E3A',
+                badgeBg:   '#FCEEF1',
+                desc:  'Acme Consulting LLC — 2024 annual P&L with revenue, COGS, operating expenses, and other items.',
+                rows:  '~40 line items',
+                color: '#C41E3A',
+              },
+              {
+                file:  '/sample_bs_current.xlsx',
+                name:  'sample_bs_current.xlsx',
+                icon:  '🏦',
+                title: 'Balance Sheet (Current)',
+                badge: 'Quick / Full Analysis',
+                badgeColor: '#1E40AF',
+                badgeBg:   '#EFF6FF',
+                desc:  'Balance sheet as of Dec 31, 2024 — assets, liabilities, and equity with typical QuickBooks layout.',
+                rows:  '~30 line items',
+                color: '#1E40AF',
+              },
+              {
+                file:  '/sample_bs_previous.xlsx',
+                name:  'sample_bs_previous.xlsx',
+                icon:  '📅',
+                title: 'Balance Sheet (Prior Year)',
+                badge: 'Full Analysis only',
+                badgeColor: '#B45309',
+                badgeBg:   '#FEF3C7',
+                desc:  'Prior-year balance sheet (Dec 31, 2023) — use alongside Current BS for period-over-period comparison.',
+                rows:  '~30 line items',
+                color: '#B45309',
+              },
+              {
+                file:  '/sample_pl_monthly_2025.xlsx',
+                name:  'sample_pl_monthly_2025.xlsx',
+                icon:  '📈',
+                title: 'Monthly P&L (Jan–Dec)',
+                badge: 'Monthly Analysis',
+                badgeColor: '#1B6535',
+                badgeBg:   '#EAF6EE',
+                desc:  '12-month columnar P&L — use in Monthly Analysis mode for anomaly detection and profit forecasting.',
+                rows:  '12 month columns',
+                color: '#1B6535',
+              },
+            ].map((s, i) => (
+              <div key={i} style={{ borderRight:'1px solid #EDE9DF', borderBottom:'1px solid #EDE9DF', padding:'20px 22px', display:'flex', flexDirection:'column', gap:10 }}>
+                {/* Icon + title */}
+                <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                  <div style={{ width:38, height:38, borderRadius:6, background:'#F7F4EE', border:`1.5px solid ${s.color}33`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:20, flexShrink:0 }}>{s.icon}</div>
+                  <div>
+                    <p style={{ margin:0, fontWeight:700, fontSize:13, color:'#1A1009', fontFamily:'IBM Plex Sans' }}>{s.title}</p>
+                    <span style={{ fontSize:10, fontFamily:'IBM Plex Mono', color:s.badgeColor, background:s.badgeBg, padding:'2px 7px', borderRadius:2, fontWeight:600, letterSpacing:'0.06em' }}>{s.badge}</span>
+                  </div>
+                </div>
+
+                {/* Description */}
+                <p style={{ margin:0, fontSize:12, color:'#8A7F70', fontFamily:'IBM Plex Sans', lineHeight:1.6, flex:1 }}>{s.desc}</p>
+
+                {/* Meta row */}
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8 }}>
+                  <span style={{ fontSize:10, fontFamily:'IBM Plex Mono', color:'#C4BAA8' }}>XLSX · {s.rows}</span>
+
+                  {/* Download button */}
+                  <a href={s.file} download={s.name}
+                    style={{ display:'flex', alignItems:'center', gap:6, padding:'7px 14px', background:s.color, color:'#FFFFFF', textDecoration:'none', borderRadius:2, fontSize:11, fontFamily:'IBM Plex Sans', fontWeight:600, letterSpacing:'0.04em', transition:'opacity 0.15s', whiteSpace:'nowrap' }}
+                    onMouseEnter={e => e.currentTarget.style.opacity='0.85'}
+                    onMouseLeave={e => e.currentTarget.style.opacity='1'}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                      <polyline points="7 10 12 15 17 10"/>
+                      <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    Download
+                  </a>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Tip bar */}
+          <div style={{ background:'#F7F4EE', borderTop:'1px solid #EDE9DF', padding:'12px 24px', display:'flex', alignItems:'center', gap:10 }}>
+            <span style={{ fontSize:14 }}>💡</span>
+            <p style={{ margin:0, fontSize:12, color:'#8A7F70', fontFamily:'IBM Plex Sans', lineHeight:1.6 }}>
+              <strong style={{ color:'#3D3525' }}>Tip:</strong> For a Full Analysis demo, download the P&L + Balance Sheet (Current) + Balance Sheet (Prior Year) and upload all three at once. For monthly trends, use the Monthly P&L in Monthly Analysis mode.
+            </p>
+          </div>
+        </div>
+
         {/* Footer note */}
-        <p style={{ textAlign:'center', marginTop:32, fontSize:11, color:'#C4BAA8', fontFamily:'IBM Plex Mono', letterSpacing:'0.04em' }}>
+        <p style={{ textAlign:'center', marginTop:24, fontSize:11, color:'#C4BAA8', fontFamily:'IBM Plex Mono', letterSpacing:'0.04em' }}>
           SUPPORTS QUICKBOOKS ONLINE EXPORTS · XLSX · CSV
         </p>
       </div>
