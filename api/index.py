@@ -1137,3 +1137,403 @@ def health(): return {"status":"ok"}
 
 @app.get("/api/tax/countries")
 def tax_countries(): return {"supported_countries":list(TAX_RULES.keys())}
+
+
+# ── BENCHMARKS ────────────────────────────────────────────────────────────────
+
+@app.get("/api/benchmarks/industries")
+def list_industries():
+    from benchmarks import get_industry_list
+    return {"industries": get_industry_list()}
+
+
+class BenchmarkReq(BaseModel):
+    industry_key: str
+    pl_data:  Optional[dict] = None
+    bs_data:  Optional[dict] = None
+
+@app.post("/api/benchmarks/compare")
+def benchmark_compare(req: BenchmarkReq):
+    try:
+        from benchmarks import compare_to_benchmark
+        result = compare_to_benchmark(req.pl_data, req.bs_data, req.industry_key)
+        if result is None:
+            raise HTTPException(404, f"Industry '{req.industry_key}' not found.")
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+# ── RISK ASSESSMENT ───────────────────────────────────────────────────────────
+
+class RiskReq(BaseModel):
+    pl_data: Optional[dict] = None
+    bs_data: Optional[dict] = None
+
+@app.post("/api/risk/assess")
+def risk_assess(req: RiskReq):
+    try:
+        from risk_analyzer import full_risk_assessment
+        if not req.pl_data and not req.bs_data:
+            raise HTTPException(400, "At least one of pl_data or bs_data is required.")
+        return full_risk_assessment(req.pl_data, req.bs_data)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+# ── SCENARIO SIMULATOR ────────────────────────────────────────────────────────
+
+class ScenarioReq(BaseModel):
+    pl_data:             dict
+    revenue_change_pct:  float = 0
+    cogs_change_pct:     float = 0
+    opex_change_pct:     float = 0
+    label:               str   = "Custom Scenario"
+    description:         str   = ""
+
+@app.post("/api/scenario/run")
+def run_scenario_api(req: ScenarioReq):
+    try:
+        from scenarios import run_scenario
+        return run_scenario(req.pl_data, {
+            "revenue_change_pct": req.revenue_change_pct,
+            "cogs_change_pct":    req.cogs_change_pct,
+            "opex_change_pct":    req.opex_change_pct,
+            "label":              req.label,
+            "description":        req.description,
+        })
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+class PresetReq(BaseModel):
+    pl_data: dict
+
+@app.post("/api/scenario/presets")
+def get_presets(req: PresetReq):
+    try:
+        from scenarios import preset_scenarios
+        return {"scenarios": preset_scenarios(req.pl_data)}
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+# ── BURN RATE & RUNWAY ────────────────────────────────────────────────────────
+
+class RunwayReq(BaseModel):
+    pl_data:       dict
+    bs_data:       Optional[dict]  = None
+    cash_on_hand:  Optional[float] = None
+
+@app.post("/api/runway")
+def compute_runway_api(req: RunwayReq):
+    try:
+        from scenarios import compute_runway
+        return compute_runway(req.pl_data, req.bs_data, req.cash_on_hand)
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+# ── NARRATIVE REPORT ──────────────────────────────────────────────────────────
+
+class NarrativeReq(BaseModel):
+    pl_data:        Optional[dict] = None
+    bs_data:        Optional[dict] = None
+    benchmark_data: Optional[dict] = None
+    risk_data:      Optional[dict] = None
+    tax_data:       Optional[dict] = None
+    company_name:   str = "Your Company"
+    period:         str = ""
+    industry:       str = ""
+
+@app.post("/api/narrative")
+def generate_narrative_api(req: NarrativeReq):
+    try:
+        from narrative import generate_narrative
+        return generate_narrative(
+            pl_data        = req.pl_data,
+            bs_data        = req.bs_data,
+            benchmark_data = req.benchmark_data,
+            risk_data      = req.risk_data,
+            tax_data       = req.tax_data,
+            company_name   = req.company_name or "Your Company",
+            period         = req.period,
+            industry       = req.industry,
+        )
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+# ── AI FINANCIAL CHAT ─────────────────────────────────────────────────────────
+
+class ChatReq(BaseModel):
+    question:    str
+    pl_data:     Optional[dict] = None
+    bs_data:     Optional[dict] = None
+    tax_data:    Optional[dict] = None
+    risk_data:   Optional[dict] = None
+    monthly_data: Optional[dict] = None
+    history:     Optional[list] = None   # [{role, content}]
+
+@app.post("/api/chat")
+def financial_chat(req: ChatReq):
+    """
+    Context-aware financial Q&A using the user's actual uploaded data.
+    Pure rule-based engine — no external AI dependency.
+    """
+    try:
+        q = req.question.strip().lower()
+        ctx = _build_chat_context(req.pl_data, req.bs_data, req.tax_data, req.risk_data, req.monthly_data)
+        answer = _answer_question(q, ctx)
+        return {"question": req.question, "answer": answer, "context_available": list(ctx.keys())}
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+def _build_chat_context(pl_data, bs_data, tax_data, risk_data, monthly_data):
+    ctx = {}
+    if pl_data:
+        ps = pl_data.get("summary", {}); pr = pl_data.get("ratios", {})
+        ctx["pl"] = {
+            "revenue":       ps.get("total_revenue", 0),
+            "net_profit":    ps.get("net_profit", 0),
+            "gross_profit":  ps.get("gross_profit", 0),
+            "cogs":          ps.get("total_cogs", 0),
+            "opex":          ps.get("total_op_expenses", 0),
+            "ebitda":        ps.get("ebitda", 0),
+            "gross_margin":  pr.get("gross_margin", 0),
+            "net_margin":    pr.get("net_profit_margin", 0),
+            "expense_ratio": pr.get("expense_ratio", 0),
+            "period":        pl_data.get("period", "N/A"),
+            "top_expenses":  pl_data.get("breakdown", {}).get("top_expenses", []),
+        }
+    if bs_data:
+        bs = bs_data.get("summary", {}); br = bs_data.get("ratios", {})
+        ctx["bs"] = {
+            "total_assets":      bs.get("total_assets", 0),
+            "total_liabilities": bs.get("total_liabilities", 0),
+            "equity":            bs.get("equity", 0),
+            "working_capital":   bs.get("working_capital", 0),
+            "current_ratio":     br.get("current_ratio"),
+            "debt_to_equity":    br.get("debt_to_equity"),
+            "period":            bs_data.get("period", "N/A"),
+        }
+    if tax_data and tax_data.get("tax") is not None:
+        ctx["tax"] = {
+            "estimated_tax":  tax_data.get("tax", 0),
+            "effective_rate": tax_data.get("effective_rate", 0),
+            "taxable_income": tax_data.get("taxable_income", 0),
+            "country":        tax_data.get("country", ""),
+            "entity_type":    tax_data.get("entity_type", ""),
+        }
+    if risk_data:
+        ctx["risk"] = {
+            "z_score":       risk_data.get("altman_z", {}).get("z_score"),
+            "zone":          risk_data.get("altman_z", {}).get("zone_label"),
+            "risk_score":    risk_data.get("risk_radar", {}).get("overall_score"),
+            "risk_label":    risk_data.get("risk_radar", {}).get("overall_label"),
+        }
+    if monthly_data:
+        ctx["monthly"] = {
+            "avg_revenue":    monthly_data.get("summary", {}).get("avg_monthly_revenue", 0),
+            "avg_profit":     monthly_data.get("summary", {}).get("avg_monthly_profit", 0),
+            "best_month":     monthly_data.get("summary", {}).get("best_month", "N/A"),
+            "worst_month":    monthly_data.get("summary", {}).get("worst_month", "N/A"),
+            "anomaly_count":  len(monthly_data.get("anomalies", [])),
+        }
+    return ctx
+
+
+def _fmt_dollar(n):
+    if n is None: return "N/A"
+    neg = n < 0; a = abs(n)
+    s = f"${a/1e6:.1f}M" if a >= 1e6 else f"${a/1e3:.0f}K" if a >= 1e3 else f"${a:,.0f}"
+    return f"({s})" if neg else s
+
+
+def _answer_question(q: str, ctx: dict) -> str:
+    pl = ctx.get("pl", {}); bs = ctx.get("bs", {}); tax = ctx.get("tax", {}); risk = ctx.get("risk", {})
+
+    # Revenue questions
+    if any(k in q for k in ["revenue", "sales", "income", "top line"]):
+        if "pl" in ctx:
+            rev = pl["revenue"]; nm = pl["net_margin"]; gm = pl["gross_margin"]
+            ans = f"Your total revenue for {pl['period']} is **{_fmt_dollar(rev)}**. "
+            ans += f"Of every dollar earned, {gm:.1f}¢ becomes gross profit (after direct costs), "
+            ans += f"and {nm:.1f}¢ reaches net profit after all expenses. "
+            if nm < 0:
+                ans += "⚠️ The business is currently operating at a net loss — expenses exceed revenue."
+            elif nm < 5:
+                ans += "The net margin is thin — a small revenue drop could push the business into a loss."
+            elif nm >= 15:
+                ans += "This is a strong profitability position — you retain over 15 cents of profit per dollar earned."
+            return ans
+        return "I don't have P&L data to answer revenue questions. Please upload a Profit & Loss file."
+
+    # Profit / profitability questions
+    if any(k in q for k in ["profit", "profitable", "earnings", "net income", "loss"]):
+        if "pl" in ctx:
+            net = pl["net_profit"]; nm = pl["net_margin"]
+            if net >= 0:
+                ans = f"The business is **profitable** with a net profit of **{_fmt_dollar(net)}** ({nm:.1f}% net margin) for {pl['period']}. "
+            else:
+                ans = f"The business is **operating at a loss** of **{_fmt_dollar(abs(net))}** ({nm:.1f}% net margin) for {pl['period']}. "
+            ans += f"Gross profit (before operating expenses) is {_fmt_dollar(pl['gross_profit'])} ({pl['gross_margin']:.1f}% gross margin). "
+            if pl.get("top_expenses"):
+                te = pl["top_expenses"][0]
+                ans += f"The largest single cost driver is **{te['label']}** at {_fmt_dollar(te['value'])}."
+            return ans
+        return "No P&L data available to answer profit questions."
+
+    # Expense questions
+    if any(k in q for k in ["expense", "cost", "spending", "overhead", "cogs"]):
+        if "pl" in ctx:
+            er = pl["expense_ratio"]; cogs = pl["cogs"]; opex = pl["opex"]
+            ans = f"Your expense ratio is **{er:.1f}%** — meaning {er:.1f}¢ of every revenue dollar goes to costs. "
+            ans += f"Cost breakdown: COGS {_fmt_dollar(cogs)} + Operating Expenses {_fmt_dollar(opex)}. "
+            if pl.get("top_expenses"):
+                ans += "Top 3 cost items: " + ", ".join(
+                    f"**{t['label']}** ({_fmt_dollar(t['value'])})" for t in pl["top_expenses"][:3]
+                ) + "."
+            if er > 90:
+                ans += " ⚠️ Critical: Expenses are consuming over 90% of revenue. Immediate cost review required."
+            elif er < 65:
+                ans += " ✅ Strong cost control — expenses are well-managed relative to revenue."
+            return ans
+        return "No P&L data available to answer expense questions."
+
+    # Cash / liquidity questions
+    if any(k in q for k in ["cash", "liquid", "current ratio", "working capital"]):
+        if "bs" in ctx:
+            cr = bs.get("current_ratio"); wc = bs.get("working_capital", 0)
+            ans = f"**Working capital** (current assets minus current liabilities) is **{_fmt_dollar(wc)}**. "
+            if cr:
+                ans += f"The current ratio is **{cr:.2f}x**. "
+                if cr >= 2: ans += "✅ Excellent liquidity — the business can comfortably cover short-term obligations."
+                elif cr >= 1.5: ans += "✅ Healthy liquidity position."
+                elif cr >= 1.0: ans += "⚠️ Liquidity is tight — monitor cash flow carefully."
+                else: ans += "🚨 Critical: Current liabilities exceed current assets. Immediate attention required."
+            return ans
+        return "No balance sheet data available to answer liquidity questions."
+
+    # Debt / leverage questions
+    if any(k in q for k in ["debt", "leverage", "borrow", "loan", "liability", "liabilities"]):
+        if "bs" in ctx:
+            tl = bs.get("total_liabilities", 0); dte = bs.get("debt_to_equity"); eq = bs.get("equity", 0)
+            ans = f"Total liabilities are **{_fmt_dollar(tl)}** against equity of **{_fmt_dollar(eq)}**. "
+            if dte is not None:
+                ans += f"The debt-to-equity ratio is **{dte:.2f}x**. "
+                if dte <= 0.5: ans += "✅ Conservative leverage — the business is primarily equity-funded."
+                elif dte <= 1.5: ans += "Moderate leverage within normal business ranges."
+                elif dte <= 3.0: ans += "⚠️ Elevated leverage — monitor debt service costs."
+                else: ans += "🚨 High leverage — debt significantly exceeds equity, creating financial risk."
+            return ans
+        return "No balance sheet data available to answer debt questions."
+
+    # Tax questions
+    if any(k in q for k in ["tax", "taxes", "irs", "taxable"]):
+        if "tax" in ctx:
+            ans = (
+                f"Estimated tax liability is **{_fmt_dollar(tax['estimated_tax'])}** "
+                f"at an effective rate of **{tax['effective_rate']:.1f}%**. "
+                f"Taxable income after deductions: {_fmt_dollar(tax['taxable_income'])}. "
+                f"Country: {tax['country']}, Entity: {tax['entity_type']}. "
+                "⚠️ This is an estimate only — consult a CPA for professional tax advice."
+            )
+            return ans
+        return "No tax data available. Upload a P&L file and select your entity type and country in the upload form to generate a tax estimate."
+
+    # Risk questions
+    if any(k in q for k in ["risk", "distress", "bankrupt", "z-score", "z score", "altman"]):
+        if "risk" in ctx:
+            z = risk.get("z_score"); zone = risk.get("zone"); rs = risk.get("risk_score")
+            ans = ""
+            if z: ans += f"**Altman Z'-Score: {z:.2f}** — {zone}. "
+            if rs: ans += f"Overall risk score: **{rs}/100** ({risk.get('risk_label', '')}). "
+            if zone == "Safe Zone": ans += "✅ Low financial distress risk based on the Altman model."
+            elif zone == "Grey Zone": ans += "⚠️ Moderate distress risk — the business is in a zone of uncertainty."
+            elif zone == "Distress Zone": ans += "🚨 High distress risk — immediate strategic review is recommended."
+            return ans if ans else "Risk data available but no Z-Score computed (requires both P&L and Balance Sheet)."
+        return "No risk assessment data available. Run a Full Analysis (P&L + Balance Sheet) to unlock risk metrics."
+
+    # Gross margin questions
+    if any(k in q for k in ["gross margin", "gross profit", "cogs ratio"]):
+        if "pl" in ctx:
+            gm = pl["gross_margin"]; gp = pl["gross_profit"]; cogs = pl["cogs"]
+            ans = f"Gross margin is **{gm:.1f}%** — gross profit of {_fmt_dollar(gp)} after {_fmt_dollar(cogs)} in direct costs. "
+            if gm >= 60: ans += "✅ Excellent gross margin — strong pricing power or low direct costs."
+            elif gm >= 35: ans += "Healthy gross margin for most industries."
+            elif gm >= 15: ans += "⚠️ Below-average gross margin — consider COGS reduction or pricing review."
+            else: ans += "🚨 Very low gross margin — direct costs are consuming most revenue."
+            return ans
+
+    # EBITDA questions
+    if "ebitda" in q:
+        if "pl" in ctx:
+            ebitda = pl["ebitda"]; rev = pl["revenue"]
+            ebitda_m = ebitda / rev * 100 if rev else 0
+            return (
+                f"EBITDA is **{_fmt_dollar(ebitda)}** ({ebitda_m:.1f}% of revenue). "
+                "EBITDA represents earnings before interest, taxes, depreciation, and amortization — "
+                "a proxy for operating cash generation and the most common metric for business valuation multiples."
+            )
+
+    # Valuation questions
+    if any(k in q for k in ["value", "valuation", "worth", "multiple", "sell"]):
+        if "pl" in ctx:
+            ebitda = pl["ebitda"]; net = pl["net_profit"]; rev = pl["revenue"]
+            ans = "Business valuations vary by industry and method. Common approaches using your financials:\n\n"
+            if ebitda > 0:
+                ans += f"• **EBITDA Multiple** (most common): At 4–6x EBITDA → **{_fmt_dollar(ebitda*4)} to {_fmt_dollar(ebitda*6)}**\n"
+            if net > 0:
+                ans += f"• **P/E Multiple**: At 10–15x net profit → **{_fmt_dollar(net*10)} to {_fmt_dollar(net*15)}**\n"
+            if rev > 0:
+                ans += f"• **Revenue Multiple**: At 0.5–2x revenue → **{_fmt_dollar(rev*0.5)} to {_fmt_dollar(rev*2)}**\n"
+            ans += "\n⚠️ These are rough estimates. Actual valuation depends on growth rate, industry, customer concentration, and market conditions. Engage an M&A advisor for a formal valuation."
+            return ans
+
+    # Improvement / advice questions
+    if any(k in q for k in ["improve", "increase profit", "better", "advice", "recommend", "how to", "how can"]):
+        if "pl" in ctx:
+            rec = []
+            if pl["net_margin"] < 10:
+                rec.append(f"**Improve net margin** (currently {pl['net_margin']:.1f}%): Review the top 3 expense categories for 10–20% reduction opportunities.")
+            if pl["gross_margin"] < 35:
+                rec.append(f"**Improve gross margin** (currently {pl['gross_margin']:.1f}%): Negotiate better supplier terms, optimize product mix, or test a 5–10% price increase.")
+            if pl["expense_ratio"] > 80:
+                rec.append(f"**Reduce expense ratio** (currently {pl['expense_ratio']:.1f}%): Target <75% by eliminating or renegotiating your largest overhead items.")
+            if "bs" in ctx and bs.get("current_ratio", 2) < 1.5:
+                rec.append(f"**Improve liquidity**: Implement a 30/60/90-day receivables collection policy and build a 2-month cash reserve.")
+            if not rec:
+                rec = ["Your financials show solid health. Focus on sustaining margins, building cash reserves, and reinvesting in growth."]
+            return "\n\n".join(f"{i+1}. {r}" for i, r in enumerate(rec))
+
+    # Monthly / trend questions
+    if any(k in q for k in ["monthly", "trend", "seasonal", "best month", "worst month"]):
+        if "monthly" in ctx:
+            m = ctx["monthly"]
+            return (
+                f"Based on monthly analysis: Average monthly revenue is **{_fmt_dollar(m['avg_revenue'])}** "
+                f"with average monthly profit of **{_fmt_dollar(m['avg_profit'])}**. "
+                f"Best month: **{m['best_month']}** | Worst month: **{m['worst_month']}**. "
+                f"{m['anomaly_count']} anomal{'y' if m['anomaly_count']==1 else 'ies'} detected (statistical outliers)."
+            )
+        return "No monthly data available. Upload a monthly P&L (with Jan–Dec columns) and run Monthly Analysis."
+
+    # General / unknown
+    available = []
+    if "pl" in ctx: available.append(f"P&L ({pl.get('period','N/A')}): Revenue {_fmt_dollar(pl['revenue'])}, Net Profit {_fmt_dollar(pl['net_profit'])}, Net Margin {pl['net_margin']:.1f}%")
+    if "bs" in ctx: available.append(f"Balance Sheet: Assets {_fmt_dollar(bs.get('total_assets',0))}, Equity {_fmt_dollar(bs.get('equity',0))}, Current Ratio {bs.get('current_ratio','N/A')}")
+    if "tax" in ctx: available.append(f"Tax: ~{_fmt_dollar(tax['estimated_tax'])} estimated ({tax['effective_rate']:.1f}% effective rate)")
+    if "risk" in ctx and risk.get("z_score"): available.append(f"Risk: Z-Score {risk['z_score']:.2f} ({risk.get('zone','')})")
+
+    if available:
+        return (
+            "I can answer questions about your financials. Here's a quick summary of what I see:\n\n" +
+            "\n".join(f"• {a}" for a in available) +
+            "\n\nAsk me about revenue, profits, expenses, cash flow, debt, taxes, risk, valuation, or improvement recommendations!"
+        )
+    return "No financial data loaded yet. Please upload and analyze your financial statements first, then ask me anything about your numbers!"

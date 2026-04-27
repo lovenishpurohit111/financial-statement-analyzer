@@ -23,6 +23,25 @@ const COUNTRY_OPTIONS = [
   { value: 'DE', label: '🇩🇪 Germany' },
 ];
 
+const INDUSTRY_OPTIONS = [
+  { value: '',                      label: 'Select industry (optional)…' },
+  { value: 'saas',                  label: '💻 SaaS / Software' },
+  { value: 'professional_services', label: '💼 Professional Services' },
+  { value: 'retail',                label: '🛍️ Retail (General)' },
+  { value: 'ecommerce',             label: '🛒 E-Commerce' },
+  { value: 'restaurant',            label: '🍽️ Restaurant / Food Service' },
+  { value: 'healthcare',            label: '🏥 Healthcare / Medical' },
+  { value: 'construction',          label: '🏗️ Construction' },
+  { value: 'manufacturing',         label: '🏭 Manufacturing' },
+  { value: 'real_estate_services',  label: '🏘️ Real Estate Services' },
+  { value: 'technology_it',         label: '💡 Technology / IT Services' },
+  { value: 'logistics',             label: '🚛 Logistics / Transportation' },
+  { value: 'marketing_agency',      label: '🎯 Marketing / Creative Agency' },
+  { value: 'fintech',               label: '💳 FinTech / Financial Services' },
+  { value: 'education',             label: '📚 Education / Training' },
+  { value: 'nonprofit',             label: '🤝 Non-Profit / NGO' },
+];
+
 function FileSlot({ label, sublabel, slotKey, parsed, onParsed, expectedType }) {
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState(null);
@@ -175,6 +194,7 @@ export default function UploadPage({ onAnalysisDone }) {
   const [parsed,      setParsed]      = useState({ pl:null, bsCurrent:null, bsPrevious:null });
   const [entity,      setEntity]      = useState('');
   const [country,     setCountry]     = useState('');
+  const [industry,    setIndustry]    = useState('');
   const [deductions,  setDeductions]  = useState({});
   const [mode,        setMode]        = useState('quick');
   const [monthlyData, setMonthlyData] = useState(null);
@@ -208,7 +228,7 @@ export default function UploadPage({ onAnalysisDone }) {
         const r = await axios.post(`${API}/analyze/bs`, { parsed_data:parsed.bsCurrent.parsed_data });
         result = { mode:'bs', ...r.data };
       }
-      onAnalysisDone(result, sourceFiles);
+      onAnalysisDone(result, sourceFiles, industry);
     } catch (e) {
       const d = e.response?.data?.detail;
       setError(typeof d === 'string' ? d : 'Analysis failed. Please check your files and try again.');
@@ -276,6 +296,15 @@ export default function UploadPage({ onAnalysisDone }) {
               <FileSlot slotKey="pl"         label="Profit & Loss"       sublabel="P&L or Income Statement"    onParsed={handleParsed} parsed={parsed.pl}         expectedType="pl" />
               <FileSlot slotKey="bsCurrent"  label="Balance Sheet"       sublabel="Current period"              onParsed={handleParsed} parsed={parsed.bsCurrent}  expectedType="bs" />
               {mode === 'full' && <FileSlot slotKey="bsPrevious" label="Balance Sheet (Prev)" sublabel="Prior period — optional" onParsed={handleParsed} parsed={parsed.bsPrevious} expectedType="bs" />}
+            </div>
+
+            {/* Industry selector */}
+            <div style={{ background:'#FFFFFF', border:'1px solid #E2DDD4', borderTop:'3px solid #1B6535', padding:20, marginBottom:16 }}>
+              <p className="section-label" style={{ marginBottom:6, color:'#1B6535' }}>Industry Benchmark (Optional)</p>
+              <p style={{ margin:'0 0 12px', fontSize:12, color:'#8A7F70', fontFamily:'IBM Plex Sans' }}>Select your industry to unlock peer benchmarking in the dashboard.</p>
+              <select value={industry} onChange={e => setIndustry(e.target.value)} style={sel}>
+                {INDUSTRY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
             </div>
 
             {/* Entity + Country */}
