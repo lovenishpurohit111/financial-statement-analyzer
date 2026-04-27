@@ -1139,6 +1139,47 @@ def health(): return {"status":"ok"}
 def tax_countries(): return {"supported_countries":list(TAX_RULES.keys())}
 
 
+# ── SAMPLE FILE DOWNLOADS ─────────────────────────────────────────────────────
+import pathlib
+
+SAMPLE_FILES = {
+    "pl":             ("sample_pl.xlsx",              "QuickBooks-PL-Sample-2024.xlsx"),
+    "bs_current":     ("sample_bs_current.xlsx",      "QuickBooks-BalanceSheet-Current-2024.xlsx"),
+    "bs_previous":    ("sample_bs_previous.xlsx",     "QuickBooks-BalanceSheet-Prior-2023.xlsx"),
+    "monthly":        ("sample_pl_monthly_2025.xlsx", "QuickBooks-Monthly-PL-2025.xlsx"),
+}
+
+@app.get("/api/samples/{file_key}")
+def download_sample(file_key: str):
+    """Serve sample XLSX files as proper binary downloads."""
+    if file_key not in SAMPLE_FILES:
+        raise HTTPException(404, f"Unknown sample file '{file_key}'. Valid keys: {list(SAMPLE_FILES.keys())}")
+
+    filename, download_name = SAMPLE_FILES[file_key]
+
+    # Look in sample_data/ folder relative to this file
+    base = pathlib.Path(__file__).parent
+    candidates = [
+        base / "sample_data" / filename,
+        base.parent / "sample_data" / filename,
+        base.parent / "public" / filename,
+    ]
+    found = next((p for p in candidates if p.exists()), None)
+
+    if not found:
+        raise HTTPException(404, f"Sample file '{filename}' not found on server.")
+
+    return StreamingResponse(
+        open(found, "rb"),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": f'attachment; filename="{download_name}"',
+            "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "Cache-Control": "public, max-age=86400",
+        }
+    )
+
+
 # ── BENCHMARKS ────────────────────────────────────────────────────────────────
 
 @app.get("/api/benchmarks/industries")

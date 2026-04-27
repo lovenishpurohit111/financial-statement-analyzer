@@ -364,8 +364,8 @@ export default function UploadPage({ onAnalysisDone }) {
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(220px,1fr))', gap:0 }}>
             {[
               {
-                file:  '/sample_pl.xlsx',
-                name:  'sample_pl.xlsx',
+                file:  '/api/samples/pl',
+                name:  'QuickBooks-PL-Sample-2024.xlsx',
                 icon:  '📊',
                 title: 'Profit & Loss',
                 badge: 'Quick / Full Analysis',
@@ -376,8 +376,8 @@ export default function UploadPage({ onAnalysisDone }) {
                 color: '#C41E3A',
               },
               {
-                file:  '/sample_bs_current.xlsx',
-                name:  'sample_bs_current.xlsx',
+                file:  '/api/samples/bs_current',
+                name:  'QuickBooks-BalanceSheet-Current-2024.xlsx',
                 icon:  '🏦',
                 title: 'Balance Sheet (Current)',
                 badge: 'Quick / Full Analysis',
@@ -388,8 +388,8 @@ export default function UploadPage({ onAnalysisDone }) {
                 color: '#1E40AF',
               },
               {
-                file:  '/sample_bs_previous.xlsx',
-                name:  'sample_bs_previous.xlsx',
+                file:  '/api/samples/bs_previous',
+                name:  'QuickBooks-BalanceSheet-Prior-2023.xlsx',
                 icon:  '📅',
                 title: 'Balance Sheet (Prior Year)',
                 badge: 'Full Analysis only',
@@ -400,8 +400,8 @@ export default function UploadPage({ onAnalysisDone }) {
                 color: '#B45309',
               },
               {
-                file:  '/sample_pl_monthly_2025.xlsx',
-                name:  'sample_pl_monthly_2025.xlsx',
+                file:  '/api/samples/monthly',
+                name:  'QuickBooks-Monthly-PL-2025.xlsx',
                 icon:  '📈',
                 title: 'Monthly P&L (Jan–Dec)',
                 badge: 'Monthly Analysis',
