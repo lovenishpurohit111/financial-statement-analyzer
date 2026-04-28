@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-const APP_URL  = 'https://financial-statement-analyzer.vercel.app';
+const APP_URL  = 'https://financial-statement-analyzer-jade.vercel.app';
 const APP_NAME = 'FinAnalyzer';
 const TAGLINE  = 'Free financial statement analyzer — upload a QuickBooks export and instantly get profit margins, risk scores, industry benchmarks, and a CFO-quality report.';
 

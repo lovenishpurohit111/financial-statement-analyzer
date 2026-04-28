@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import ShareModal from './ShareModal';
 
 const APPS = {
-  fsa: { short:'FinAnalyzer', url:'https://financial-statement-analyzer.vercel.app',  icon:'📊', desc:'P&L · Balance Sheet · Tax insights', color:'#C41E3A' },
+  fsa: { short:'FinAnalyzer', url:'https://financial-statement-analyzer-jade.vercel.app',  icon:'📊', desc:'P&L · Balance Sheet · Tax insights', color:'#C41E3A' },
   cpd: { short:'ProfitLens',  url:'https://client-profitability-dashboard.vercel.app', icon:'💰', desc:'Client revenue · expenses · profit',   color:'#34d399' },
 };
 
