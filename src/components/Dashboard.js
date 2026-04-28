@@ -11,6 +11,7 @@ import RiskPanel       from './RiskPanel';
 import NarrativePanel  from './NarrativePanel';
 import AIChatPanel     from './AIChatPanel';
 import RunwayPanel     from './RunwayPanel';
+import ShareModal     from './ShareModal';
 
 function HealthBar({ score }) {
   if (score == null) return null;
@@ -32,6 +33,8 @@ function HealthBar({ score }) {
       <div style={{ fontSize: 11, fontFamily: 'IBM Plex Mono', color: '#8A7F70', lineHeight: 2 }}>
         <div>Profitability · Liquidity</div><div>Leverage · Efficiency</div>
       </div>
+
+      <ShareModal open={shareOpen} onClose={() => setShareOpen(false)} />
     </div>
   );
 }
@@ -117,7 +120,8 @@ const ALL_TABS = [
 ];
 
 export default function Dashboard({ results, onReset, sourceFiles, industry }) {
-  const [tab, setTab] = useState('overview');
+  const [tab, setTab]       = useState('overview');
+  const [shareOpen, setShareOpen] = useState(false);
   const dashboardRef  = useRef(null);
 
   const pl   = results?.pl_analysis || (results?.analysis?.type === 'pl' ? results.analysis : null);
@@ -146,6 +150,13 @@ export default function Dashboard({ results, onReset, sourceFiles, industry }) {
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button onClick={() => setShareOpen(true)}
+            style={{ display:'flex', alignItems:'center', gap:6, padding:'6px 14px', background:'transparent', border:'1.5px solid #1B6535', borderRadius:2, color:'#1B6535', fontSize:12, fontFamily:'IBM Plex Sans', fontWeight:600, cursor:'pointer', letterSpacing:'0.04em', transition:'all 0.15s' }}
+            onMouseEnter={e => { e.currentTarget.style.background='#EAF6EE'; }}
+            onMouseLeave={e => { e.currentTarget.style.background='transparent'; }}>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+            Share
+          </button>
           <ExportButtons results={results} dashboardRef={dashboardRef} sourceFile={sourceFiles?.pl || sourceFiles?.bsCurrent || null} />
           <button onClick={onReset} className="btn-outline" style={{ padding: '6px 14px', fontSize: 12, letterSpacing: '0.04em' }}>← NEW ANALYSIS</button>
         </div>

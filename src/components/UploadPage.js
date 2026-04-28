@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import ShareModal from './ShareModal';
 import axios from 'axios';
 import API from '../config';
 import DeductionsPanel from './DeductionsPanel';
@@ -200,6 +201,7 @@ export default function UploadPage({ onAnalysisDone }) {
   const [monthlyData, setMonthlyData] = useState(null);
   const [analyzing,   setAnalyzing]   = useState(false);
   const [error,       setError]       = useState(null);
+  const [shareOpen,   setShareOpen]   = useState(false);
 
   const [sourceFiles, setSourceFiles] = useState({});
   const handleParsed = (k, v, file) => {
@@ -260,7 +262,26 @@ export default function UploadPage({ onAnalysisDone }) {
             </button>
           ))}
         </div>
+
+          {/* Share nudge */}
+          <div style={{ marginTop:24, display:'flex', alignItems:'center', justifyContent:'center', gap:10 }}>
+            <span style={{ fontSize:12, color:'#8A7F70', fontFamily:'IBM Plex Sans' }}>Know someone who&apos;d find this useful?</span>
+            <button onClick={() => setShareOpen(true)}
+              style={{ display:'flex', alignItems:'center', gap:6, padding:'6px 16px', background:'transparent', border:'1px solid #3D3525', borderRadius:20, color:'#C4BAA8', fontSize:12, fontFamily:'IBM Plex Sans', fontWeight:600, cursor:'pointer', transition:'all 0.15s', letterSpacing:'0.02em' }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor='#4ADE80'; e.currentTarget.style.color='#4ADE80'; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor='#3D3525'; e.currentTarget.style.color='#C4BAA8'; }}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+              </svg>
+              Share this tool
+            </button>
+          </div>
       </div>
+
+      {/* Share modal */}
+      <ShareModal open={shareOpen} onClose={() => setShareOpen(false)} />
 
       {/* Content area */}
       <div style={{ maxWidth:720, margin:'0 auto', padding:'40px 24px' }}>

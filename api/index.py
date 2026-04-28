@@ -1180,6 +1180,55 @@ def download_sample(file_key: str):
     )
 
 
+# ── FEEDBACK ──────────────────────────────────────────────────────────────────
+import json as _json
+from datetime import datetime as _dt
+
+# In-memory store (persists for lambda lifetime; good enough for MVP)
+_feedback_store: list = []
+
+class FeedbackReq(BaseModel):
+    rating:     int            # 1-5 stars
+    category:   str            # "bug" | "feature" | "general" | "love"
+    message:    str
+    email:      Optional[str] = None
+    page:       Optional[str] = None   # which page/tab they were on
+
+@app.post("/api/feedback")
+def submit_feedback(req: FeedbackReq):
+    if not req.message or not req.message.strip():
+        raise HTTPException(400, "Message cannot be empty.")
+    if req.rating < 1 or req.rating > 5:
+        raise HTTPException(400, "Rating must be 1–5.")
+    if len(req.message) > 2000:
+        raise HTTPException(400, "Message too long (max 2000 chars).")
+
+    entry = {
+        "id":        len(_feedback_store) + 1,
+        "rating":    req.rating,
+        "category":  req.category,
+        "message":   req.message.strip(),
+        "email":     req.email.strip() if req.email else None,
+        "page":      req.page or "unknown",
+        "timestamp": _dt.utcnow().isoformat() + "Z",
+    }
+    _feedback_store.append(entry)
+    return {"success": True, "id": entry["id"], "message": "Thank you for your feedback!"}
+
+@app.get("/api/feedback")
+def get_feedback(secret: str = ""):
+    """View all feedback — protected by simple secret param."""
+    if secret != "finanalyzer2024":
+        raise HTTPException(403, "Invalid secret.")
+    return {
+        "total": len(_feedback_store),
+        "avg_rating": round(sum(f["rating"] for f in _feedback_store) / len(_feedback_store), 2) if _feedback_store else 0,
+        "by_category": {cat: sum(1 for f in _feedback_store if f["category"] == cat)
+                        for cat in ["bug", "feature", "general", "love"]},
+        "feedback": list(reversed(_feedback_store)),
+    }
+
+
 # ── BENCHMARKS ────────────────────────────────────────────────────────────────
 
 @app.get("/api/benchmarks/industries")
