@@ -173,7 +173,7 @@ export default function Dashboard({ results, onReset, sourceFiles, industry }) {
       </div>
 
       {/* Content */}
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '28px 24px' }}>
+      <div style={{ maxWidth: 1400, margin: '0 auto', padding: '24px 32px' }}>
         <div style={{ marginBottom: 28 }}><SummaryCards results={results} /></div>
 
         {tab === 'overview' && (

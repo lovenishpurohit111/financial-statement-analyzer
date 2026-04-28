@@ -240,13 +240,13 @@ export default function UploadPage({ onAnalysisDone }) {
   return (
     <div style={{ minHeight:'100vh', background:'#F7F4EE' }}>
       {/* Hero */}
-      <div style={{ background:'#1A1009', color:'#F7F4EE', padding:'56px 24px 48px', textAlign:'center' }}>
+      <div style={{ background:'#1A1009', color:'#F7F4EE', padding:'48px 32px 40px', textAlign:'center' }}>
         <p className="section-label" style={{ color:'#C41E3A', marginBottom:16 }}>Financial Intelligence Platform</p>
         <h1 className="headline" style={{ fontSize:'clamp(2rem,5vw,3.5rem)', color:'#F7F4EE', margin:'0 0 16px', lineHeight:1.1 }}>
           Financial Statement<br />
           <span style={{ color:'#C41E3A' }}>Analyzer</span>
         </h1>
-        <p style={{ maxWidth:520, margin:'0 auto', fontSize:15, color:'#8A7F70', lineHeight:1.7, fontFamily:'IBM Plex Sans' }}>
+        <p style={{ maxWidth:680, margin:'0 auto', fontSize:15, color:'#8A7F70', lineHeight:1.7, fontFamily:'IBM Plex Sans' }}>
           Upload QuickBooks exports. Get instant profitability insights, financial ratios, anomaly detection, and 2024/25 tax estimates — in seconds.
         </p>
 
@@ -284,7 +284,7 @@ export default function UploadPage({ onAnalysisDone }) {
       <ShareModal open={shareOpen} onClose={() => setShareOpen(false)} />
 
       {/* Content area */}
-      <div style={{ maxWidth:720, margin:'0 auto', padding:'40px 24px' }}>
+      <div style={{ maxWidth:1100, margin:'0 auto', padding:'36px 32px' }}>
 
         {/* Monthly mode */}
         {mode === 'monthly' && (
@@ -303,7 +303,7 @@ export default function UploadPage({ onAnalysisDone }) {
         {/* Quick / Full mode */}
         {mode !== 'monthly' && (
           <div className="fade-up">
-            <div style={{ borderBottom:'1px solid #E2DDD4', paddingBottom:16, marginBottom:24 }}>
+            <div style={{ borderBottom:'1px solid #E2DDD4', paddingBottom:14, marginBottom:22 }}>
               <h2 className="headline" style={{ fontSize:22, margin:0 }}>
                 {mode === 'full' ? 'Full Financial Analysis' : 'Quick Analysis'}
               </h2>
@@ -312,58 +312,123 @@ export default function UploadPage({ onAnalysisDone }) {
               </p>
             </div>
 
-            {/* File slots */}
-            <div style={{ display:'grid', gridTemplateColumns: mode==='full' ? 'repeat(3,1fr)' : 'repeat(2,1fr)', gap:16, marginBottom:28 }}>
-              <FileSlot slotKey="pl"         label="Profit & Loss"       sublabel="P&L or Income Statement"    onParsed={handleParsed} parsed={parsed.pl}         expectedType="pl" />
-              <FileSlot slotKey="bsCurrent"  label="Balance Sheet"       sublabel="Current period"              onParsed={handleParsed} parsed={parsed.bsCurrent}  expectedType="bs" />
-              {mode === 'full' && <FileSlot slotKey="bsPrevious" label="Balance Sheet (Prev)" sublabel="Prior period — optional" onParsed={handleParsed} parsed={parsed.bsPrevious} expectedType="bs" />}
-            </div>
+            {/* Two-column layout: file slots LEFT, options RIGHT */}
+            <div style={{ display:'grid', gridTemplateColumns: mode==='full' ? '1fr' : '1fr 380px', gap:24, alignItems:'start' }}>
 
-            {/* Industry selector */}
-            <div style={{ background:'#FFFFFF', border:'1px solid #E2DDD4', borderTop:'3px solid #1B6535', padding:20, marginBottom:16 }}>
-              <p className="section-label" style={{ marginBottom:6, color:'#1B6535' }}>Industry Benchmark (Optional)</p>
-              <p style={{ margin:'0 0 12px', fontSize:12, color:'#8A7F70', fontFamily:'IBM Plex Sans' }}>Select your industry to unlock peer benchmarking in the dashboard.</p>
-              <select value={industry} onChange={e => setIndustry(e.target.value)} style={sel}>
-                {INDUSTRY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
-            </div>
+              {/* LEFT — file slots */}
+              <div>
+                <div style={{ display:'grid', gridTemplateColumns: mode==='full' ? 'repeat(3,1fr)' : 'repeat(2,1fr)', gap:14, marginBottom:0 }}>
+                  <FileSlot slotKey="pl"         label="Profit & Loss"       sublabel="P&L or Income Statement"    onParsed={handleParsed} parsed={parsed.pl}         expectedType="pl" />
+                  <FileSlot slotKey="bsCurrent"  label="Balance Sheet"       sublabel="Current period"              onParsed={handleParsed} parsed={parsed.bsCurrent}  expectedType="bs" />
+                  {mode === 'full' && <FileSlot slotKey="bsPrevious" label="Balance Sheet (Prev)" sublabel="Prior period — optional" onParsed={handleParsed} parsed={parsed.bsPrevious} expectedType="bs" />}
+                </div>
 
-            {/* Entity + Country */}
-            <div style={{ background:'#FFFFFF', border:'1px solid #E2DDD4', borderTop:'3px solid #1A1009', padding:20, marginBottom:16 }}>
-              <p className="section-label" style={{ marginBottom:14 }}>Tax Estimation (Optional)</p>
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
-                <div>
-                  <label style={{ display:'block', fontSize:11, fontFamily:'IBM Plex Mono', color:'#8A7F70', letterSpacing:'0.06em', textTransform:'uppercase', marginBottom:6 }}>Entity Type</label>
-                  <select value={entity} onChange={e => { setEntity(e.target.value); if (!e.target.value) setCountry(''); }} style={sel}>
-                    {ENTITY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                  </select>
-                  {!entity && <p style={{ margin:'4px 0 0', fontSize:11, color:'#B45309', fontFamily:'IBM Plex Sans' }}>Select entity type to unlock tax insights</p>}
-                </div>
-                <div>
-                  <label style={{ display:'block', fontSize:11, fontFamily:'IBM Plex Mono', color:'#8A7F70', letterSpacing:'0.06em', textTransform:'uppercase', marginBottom:6 }}>Country</label>
-                  <select value={country} onChange={e => setCountry(e.target.value)} disabled={!entity}
-                    style={{ ...sel, opacity: entity ? 1 : 0.5, cursor: entity ? 'auto' : 'not-allowed' }}>
-                    {COUNTRY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                  </select>
-                </div>
+                {/* Analyze button at bottom of left col (full mode only) */}
+                {mode === 'full' && (
+                  <>
+                    {error && (
+                      <div style={{ margin:'16px 0 0', padding:'12px 16px', background:'#FCEEF1', border:'1px solid #E8536A', borderLeft:'3px solid #C41E3A', borderRadius:2, fontSize:13, color:'#C41E3A', fontFamily:'IBM Plex Sans' }}>
+                        ⚠ {error}
+                      </div>
+                    )}
+                    <button onClick={analyze} disabled={!canAnalyze || analyzing} className="btn-primary"
+                      style={{ width:'100%', padding:'13px', fontSize:14, letterSpacing:'0.05em', marginTop:16, opacity: canAnalyze && !analyzing ? 1 : 0.5 }}>
+                      {analyzing ? 'Analyzing…' : 'RUN FULL ANALYSIS →'}
+                    </button>
+                  </>
+                )}
               </div>
+
+              {/* RIGHT — options panel (quick mode only, stacked vertically) */}
+              {mode !== 'full' && (
+                <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+
+                  {/* Industry */}
+                  <div style={{ background:'#FFFFFF', border:'1px solid #E2DDD4', borderTop:'3px solid #1B6535', padding:18, borderRadius:'0 0 4px 4px' }}>
+                    <p className="section-label" style={{ marginBottom:6, color:'#1B6535' }}>Industry Benchmark</p>
+                    <p style={{ margin:'0 0 10px', fontSize:11, color:'#8A7F70', fontFamily:'IBM Plex Sans' }}>Unlock peer benchmarking in the dashboard.</p>
+                    <select value={industry} onChange={e => setIndustry(e.target.value)} style={sel}>
+                      {INDUSTRY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </div>
+
+                  {/* Tax */}
+                  <div style={{ background:'#FFFFFF', border:'1px solid #E2DDD4', borderTop:'3px solid #1A1009', padding:18, borderRadius:'0 0 4px 4px' }}>
+                    <p className="section-label" style={{ marginBottom:12 }}>Tax Estimation</p>
+                    <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+                      <div>
+                        <label style={{ display:'block', fontSize:11, fontFamily:'IBM Plex Mono', color:'#8A7F70', letterSpacing:'0.06em', textTransform:'uppercase', marginBottom:6 }}>Entity Type</label>
+                        <select value={entity} onChange={e => { setEntity(e.target.value); if (!e.target.value) setCountry(''); }} style={sel}>
+                          {ENTITY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                        </select>
+                        {!entity && <p style={{ margin:'4px 0 0', fontSize:11, color:'#B45309', fontFamily:'IBM Plex Sans' }}>Select entity type to unlock tax insights</p>}
+                      </div>
+                      <div>
+                        <label style={{ display:'block', fontSize:11, fontFamily:'IBM Plex Mono', color:'#8A7F70', letterSpacing:'0.06em', textTransform:'uppercase', marginBottom:6 }}>Country</label>
+                        <select value={country} onChange={e => setCountry(e.target.value)} disabled={!entity}
+                          style={{ ...sel, opacity: entity ? 1 : 0.5, cursor: entity ? 'auto' : 'not-allowed' }}>
+                          {COUNTRY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Deductions */}
+                  <DeductionsPanel country={country} entityType={entity} netProfit={null} onDeductionsChange={setDeductions} />
+
+                  {/* Error */}
+                  {error && (
+                    <div style={{ padding:'12px 16px', background:'#FCEEF1', border:'1px solid #E8536A', borderLeft:'3px solid #C41E3A', borderRadius:2, fontSize:13, color:'#C41E3A', fontFamily:'IBM Plex Sans' }}>
+                      ⚠ {error}
+                    </div>
+                  )}
+
+                  {/* Analyze button */}
+                  <button onClick={analyze} disabled={!canAnalyze || analyzing} className="btn-primary"
+                    style={{ width:'100%', padding:'13px', fontSize:14, letterSpacing:'0.05em', opacity: canAnalyze && !analyzing ? 1 : 0.5 }}>
+                    {analyzing ? 'Analyzing…' : 'RUN QUICK ANALYSIS →'}
+                  </button>
+                </div>
+              )}
             </div>
 
-            {/* Deductions */}
-            <DeductionsPanel country={country} entityType={entity} netProfit={null} onDeductionsChange={setDeductions} />
-
-            {/* Error */}
-            {error && (
-              <div style={{ margin:'16px 0', padding:'12px 16px', background:'#FCEEF1', border:'1px solid #E8536A', borderLeft:'3px solid #C41E3A', borderRadius:2, fontSize:13, color:'#C41E3A', fontFamily:'IBM Plex Sans' }}>
-                ⚠ {error}
+            {/* Full mode options below file slots */}
+            {mode === 'full' && (
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginTop:20 }}>
+                {/* Industry */}
+                <div style={{ background:'#FFFFFF', border:'1px solid #E2DDD4', borderTop:'3px solid #1B6535', padding:18, borderRadius:'0 0 4px 4px' }}>
+                  <p className="section-label" style={{ marginBottom:6, color:'#1B6535' }}>Industry Benchmark</p>
+                  <p style={{ margin:'0 0 10px', fontSize:11, color:'#8A7F70', fontFamily:'IBM Plex Sans' }}>Unlock peer benchmarking in the dashboard.</p>
+                  <select value={industry} onChange={e => setIndustry(e.target.value)} style={sel}>
+                    {INDUSTRY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                </div>
+                {/* Tax */}
+                <div style={{ background:'#FFFFFF', border:'1px solid #E2DDD4', borderTop:'3px solid #1A1009', padding:18, borderRadius:'0 0 4px 4px' }}>
+                  <p className="section-label" style={{ marginBottom:12 }}>Tax Estimation</p>
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+                    <div>
+                      <label style={{ display:'block', fontSize:11, fontFamily:'IBM Plex Mono', color:'#8A7F70', letterSpacing:'0.06em', textTransform:'uppercase', marginBottom:6 }}>Entity Type</label>
+                      <select value={entity} onChange={e => { setEntity(e.target.value); if (!e.target.value) setCountry(''); }} style={sel}>
+                        {ENTITY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display:'block', fontSize:11, fontFamily:'IBM Plex Mono', color:'#8A7F70', letterSpacing:'0.06em', textTransform:'uppercase', marginBottom:6 }}>Country</label>
+                      <select value={country} onChange={e => setCountry(e.target.value)} disabled={!entity}
+                        style={{ ...sel, opacity: entity ? 1 : 0.5, cursor: entity ? 'auto' : 'not-allowed' }}>
+                        {COUNTRY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
-
-            {/* Analyze button */}
-            <button onClick={analyze} disabled={!canAnalyze || analyzing} className="btn-primary"
-              style={{ width:'100%', padding:'14px', fontSize:14, letterSpacing:'0.05em', marginTop:8, opacity: canAnalyze && !analyzing ? 1 : 0.5 }}>
-              {analyzing ? 'Analyzing…' : mode === 'full' ? 'RUN FULL ANALYSIS →' : 'RUN QUICK ANALYSIS →'}
-            </button>
+            {mode === 'full' && (
+              <div style={{ marginTop:14 }}>
+                <DeductionsPanel country={country} entityType={entity} netProfit={null} onDeductionsChange={setDeductions} />
+              </div>
+            )}
           </div>
         )}
 
@@ -382,7 +447,7 @@ export default function UploadPage({ onAnalysisDone }) {
           </div>
 
           {/* Cards grid */}
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(220px,1fr))', gap:0 }}>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(260px,1fr))', gap:0 }}>
             {[
               {
                 file:  '/api/samples/pl',
