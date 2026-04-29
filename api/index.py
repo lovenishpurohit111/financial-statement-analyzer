@@ -1121,13 +1121,30 @@ def export_excel(req: ExportReq):
     """Generate fully-formatted multi-sheet Excel workbook."""
     try:
         from excel_export import generate_excel
-        import base64
+        import base64, urllib.parse
         raw_bytes = base64.b64decode(req.source_file_b64) if req.source_file_b64 else None
         xlsx_bytes = generate_excel(req.results, req.monthly_data, raw_bytes, req.source_filename)
+
+        # Build a safe ASCII filename + RFC 5987 UTF-8 encoded filename
+        safe_name = "financial-analysis.xlsx"
+        encoded_name = urllib.parse.quote(safe_name, safe="")
+
         return StreamingResponse(
             io.BytesIO(xlsx_bytes),
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            headers={"Content-Disposition": "attachment; filename=financial-analysis.xlsx"}
+            headers={
+                # RFC 6266 + RFC 5987 compliant Content-Disposition
+                "Content-Disposition": f'attachment; filename="{safe_name}"; filename*=UTF-8\'\'{encoded_name}',
+                "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "Content-Length": str(len(xlsx_bytes)),
+                # Tell browsers not to sniff — prevents Edge/Chrome SmartScreen reclassifying
+                "X-Content-Type-Options": "nosniff",
+                # No caching — each export is fresh
+                "Cache-Control": "no-store, no-cache, must-revalidate",
+                "Pragma": "no-cache",
+                # Allow the browser to read these headers from JS (CORS)
+                "Access-Control-Expose-Headers": "Content-Disposition, Content-Length, Content-Type",
+            }
         )
     except Exception as e:
         raise HTTPException(500, f"Excel export failed: {str(e)}")

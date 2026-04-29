@@ -55,19 +55,33 @@ export default function ExportButtons({ results, monthlyData, dashboardRef, sour
           source_file_b64: b64,
           source_filename: name,
         },
-        { responseType: 'blob', timeout: 60000 }
+        {
+          responseType: 'arraybuffer',   // arraybuffer is more reliable than blob across browsers
+          timeout: 60000,
+          headers: { 'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' },
+        }
       );
 
-      const url  = URL.createObjectURL(new Blob([res.data], {
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-      }));
-      const a    = document.createElement('a');
-      a.href     = url;
-      a.download = `financial-analysis-${period.replace(/[^a-z0-9]/gi, '-').slice(0, 30)}.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      // Build blob with explicit MIME type
+      const blob = new Blob([res.data], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      const filename = `financial-analysis-${period.replace(/[^a-z0-9]/gi, '-').slice(0, 30)}.xlsx`;
+
+      // Edge legacy (msSaveOrOpenBlob) + modern browsers (anchor click)
+      if (window.navigator && window.navigator.msSaveOrOpenBlob) {
+        window.navigator.msSaveOrOpenBlob(blob, filename);
+      } else {
+        const url = URL.createObjectURL(blob);
+        const a   = document.createElement('a');
+        a.style.display = 'none';
+        a.href     = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        // Delay revoke so browser has time to start the download
+        setTimeout(() => { URL.revokeObjectURL(url); document.body.removeChild(a); }, 2000);
+      }
       flash('Excel downloaded — 7 sheets: Summary · P&L · BS · Data Tables · Formulas · Tax · Source File');
     } catch (e) {
       const msg = e.response?.data
