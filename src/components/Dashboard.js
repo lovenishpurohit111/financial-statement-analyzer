@@ -33,8 +33,6 @@ function HealthBar({ score }) {
       <div style={{ fontSize: 11, fontFamily: 'IBM Plex Mono', color: '#8A7F70', lineHeight: 2 }}>
         <div>Profitability · Liquidity</div><div>Leverage · Efficiency</div>
       </div>
-
-      <ShareModal open={shareOpen} onClose={() => setShareOpen(false)} />
     </div>
   );
 }
@@ -202,6 +200,8 @@ export default function Dashboard({ results, onReset, sourceFiles, industry }) {
         {tab === 'breakdown' && <BreakdownTable  results={results} />}
         {tab === 'tax' && tax && <TaxPanel tax={tax} />}
       </div>
+
+      <ShareModal open={shareOpen} onClose={() => setShareOpen(false)} />
     </div>
   );
 }
