@@ -97,7 +97,7 @@ function BSComp({ comp, prev }) {
           return (
             <div key={it.k}>
               <p style={{ margin: '0 0 4px', fontSize: 11, fontFamily: 'IBM Plex Mono', color: '#8A7F70', letterSpacing: '0.06em', textTransform: 'uppercase' }}>{it.label}</p>
-              <p style={{ margin: 0, fontFamily: 'IBM Plex Mono', fontSize: 22, fontWeight: 600, color: c }}>{v >= 0 ? '+' : ''}{v.toFixed(1)}%</p>
+              <p style={{ margin: 0, fontFamily: 'IBM Plex Mono', fontSize: 22, fontWeight: 600, color: c }}>{v >= 0 ? '+' : ''}{(v ?? 0).toFixed(1)}%</p>
             </div>
           );
         })}

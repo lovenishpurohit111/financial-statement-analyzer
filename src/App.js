@@ -3,6 +3,7 @@ import UploadPage      from './components/UploadPage';
 import Dashboard       from './components/Dashboard';
 import AppNav          from './components/AppNav';
 import FeedbackWidget  from './components/FeedbackWidget';
+import ErrorBoundary   from './components/ErrorBoundary';
 
 export default function App() {
   const [page,        setPage]       = useState('upload');
@@ -19,16 +20,15 @@ export default function App() {
   const handleReset = () => { setResults(null); setPage('upload'); setIndustry(''); };
 
   return (
-    <div style={{ minHeight: '100vh', background: '#F7F4EE' }}>
-      <AppNav currentApp="fsa" />
-
-      {page === 'upload'
-        ? <UploadPage onAnalysisDone={handleAnalysisDone} />
-        : <Dashboard results={results} sourceFiles={sourceFiles} industry={industry} onReset={handleReset} />
-      }
-
-      {/* Floating feedback button — always visible on every page */}
-      <FeedbackWidget currentPage={page} />
-    </div>
+    <ErrorBoundary>
+      <div style={{ minHeight: '100vh', background: '#F7F4EE' }}>
+        <AppNav currentApp="fsa" />
+        {page === 'upload'
+          ? <UploadPage onAnalysisDone={handleAnalysisDone} />
+          : <Dashboard results={results} sourceFiles={sourceFiles} industry={industry} onReset={handleReset} />
+        }
+        <FeedbackWidget currentPage={page} />
+      </div>
+    </ErrorBoundary>
   );
 }
