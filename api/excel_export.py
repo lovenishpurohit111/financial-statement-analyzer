@@ -60,18 +60,25 @@ def _section_label(ws, row, col1, col2, text, height=18):
 # Raw Data Sheet — paste user's original file verbatim
 # ─────────────────────────────────────────────────────────────────────────────
 def _build_raw_data(wb, raw_file_bytes, raw_filename):
-    """Paste the user's original file into a 'Raw Data' sheet."""
+    """
+    Paste the user's original file into a 'Raw Data' sheet.
+    Returns a dict mapping label (lowercase stripped) → Excel row number of its value cell,
+    so other sheets can write ='Raw Data'!B{row} formulas that stay live.
+    """
     ws = wb.create_sheet("Raw Data")
     ws.sheet_view.showGridLines = False
 
     _banner(ws, 1, 1, 5, f"RAW DATA — {raw_filename}", bg=C_MUTED, size=11)
-    _set(ws, 2, 1, "This is the original file you uploaded. All analysis sheets reference formulas, not hardcoded values.",
+    _set(ws, 2, 1,
+         "✏️  EDITABLE — Change any value in this sheet and press Ctrl+Alt+F9 to recalculate all linked sheets.",
          size=9, color=C_FAINT, bg=C_INK, italic=True)
     ws.row_dimensions[2].height = 14
 
+    label_to_row = {}   # label.lower().strip() → excel row number
+
     if not raw_file_bytes:
         _set(ws, 4, 1, "No raw file data available.", size=10, color=C_MUTED)
-        return
+        return label_to_row
 
     try:
         import io as _io
@@ -81,34 +88,61 @@ def _build_raw_data(wb, raw_file_bytes, raw_filename):
         else:
             df = pd.read_excel(_io.BytesIO(raw_file_bytes), header=None, dtype=str)
 
+        # Find the value column (rightmost column with numeric data)
+        val_col_idx = 1  # default col B (index 1)
+        best_cnt = 0
+        for ci in range(df.shape[1] - 1, -1, -1):
+            cnt = 0
+            for v in df.iloc[:, ci]:
+                try:
+                    float(str(v).replace(',','').replace('$','').replace('(','-').replace(')','').strip())
+                    cnt += 1
+                except:
+                    pass
+            if cnt > best_cnt:
+                best_cnt = cnt
+                val_col_idx = ci
+        val_col_letter = get_column_letter(val_col_idx + 1)  # +1 because Excel cols are 1-based
+
         start_row = 4
         for ri, row in df.iterrows():
+            excel_row = start_row + ri
+            label_raw = str(row.iloc[0]).strip() if not pd.isna(row.iloc[0]) else ''
+
             for ci, val in enumerate(row, 1):
                 if str(val).strip() not in ('nan', 'None', ''):
-                    c = ws.cell(row=start_row + ri, column=ci, value=str(val).strip())
+                    c = ws.cell(row=excel_row, column=ci, value=str(val).strip())
                     c.font = _font(size=10)
-                    # Try to detect and format numbers
                     try:
                         num = float(str(val).replace(',','').replace('$','').replace('(','-').replace(')',''))
                         c.value = num
                         c.number_format = '#,##0.00'
                         c.alignment = _align(h="right")
+                        # Map this label → row so data tables can link back
+                        if label_raw and ci == val_col_idx + 1:
+                            label_to_row[label_raw.lower().strip()] = (excel_row, val_col_letter)
                     except:
                         c.alignment = _align(h="left")
 
         ws.column_dimensions['A'].width = 45
         ws.column_dimensions['B'].width = 18
-        for i in range(3, df.shape[1]+1):
+        for i in range(3, df.shape[1] + 1):
             ws.column_dimensions[get_column_letter(i)].width = 14
+
     except Exception as e:
         _set(ws, 4, 1, f"Could not parse raw file: {str(e)}", size=10, color=C_CRIMSON)
+
+    return label_to_row
 
 # ─────────────────────────────────────────────────────────────────────────────
 # P&L Data Table — source of truth, other sheets reference this
 # ─────────────────────────────────────────────────────────────────────────────
-def _build_pl_data_table(wb, pl_data):
-    """Write P&L line items as a proper Excel Table. Return sheet name and cell map."""
+def _build_pl_data_table(wb, pl_data, raw_label_map=None):
+    """Write P&L line items as a proper Excel Table. Return sheet name and cell map.
+    If raw_label_map provided, Amount column uses ='Raw Data'!{col}{row} formulas
+    so editing Raw Data auto-updates all analysis sheets."""
     if not pl_data: return None, {}
+    raw_label_map = raw_label_map or {}
     ws = wb.create_sheet("P&L Data Table")
     ws.sheet_view.showGridLines = False
 
@@ -136,8 +170,15 @@ def _build_pl_data_table(wb, pl_data):
             _set(ws, row, 1, section_name, size=10, bg=bg)
             _set(ws, row, 2, cat, size=10, bg=bg)
             _set(ws, row, 3, item["label"], size=10, bg=bg)
-            # Amount — use the parsed value (source of truth)
-            c4 = ws.cell(row=row, column=4, value=item["value"])
+            # Amount — live formula back to Raw Data if label found, else hardcoded value
+            label_key = item["label"].lower().strip()
+            raw_ref = raw_label_map.get(label_key)
+            if raw_ref:
+                raw_row, raw_col = raw_ref
+                amount_formula = f"='Raw Data'!{raw_col}{raw_row}"
+            else:
+                amount_formula = item["value"]
+            c4 = ws.cell(row=row, column=4, value=amount_formula)
             c4.number_format = '$#,##0.00'; c4.font = _font(size=10)
             c4.fill = _fill(bg); c4.alignment = _align(h="right")
             # % of Revenue — formula referencing the amount cell
@@ -169,8 +210,9 @@ def _build_pl_data_table(wb, pl_data):
 # ─────────────────────────────────────────────────────────────────────────────
 # BS Data Table
 # ─────────────────────────────────────────────────────────────────────────────
-def _build_bs_data_table(wb, bs_data):
+def _build_bs_data_table(wb, bs_data, raw_label_map=None):
     if not bs_data: return None, {}
+    raw_label_map = raw_label_map or {}
     ws = wb.create_sheet("BS Data Table")
     ws.sheet_view.showGridLines = False
 
@@ -198,7 +240,14 @@ def _build_bs_data_table(wb, bs_data):
             _set(ws, row, 1, main_cat, size=10, bg=bg)
             _set(ws, row, 2, sub_cat,  size=10, bg=bg)
             _set(ws, row, 3, item["label"], size=10, bg=bg)
-            c4 = ws.cell(row=row, column=4, value=item["value"])
+            label_key_bs = item["label"].lower().strip()
+            raw_ref_bs = raw_label_map.get(label_key_bs)
+            if raw_ref_bs:
+                raw_row_bs, raw_col_bs = raw_ref_bs
+                bs_amount = f"='Raw Data'!{raw_col_bs}{raw_row_bs}"
+            else:
+                bs_amount = item["value"]
+            c4 = ws.cell(row=row, column=4, value=bs_amount)
             c4.number_format = '$#,##0.00'; c4.font = _font(size=10)
             c4.fill = _fill(bg); c4.alignment = _align(h="right")
             c5 = ws.cell(row=row, column=5, value=f"=D{row}/{total_assets}")
@@ -669,9 +718,14 @@ def generate_excel(results: dict, monthly_data: dict = None,
     bs_data = results.get("bs_current")  or (results.get("analysis") if results.get("analysis",{}).get("type")=="bs" else None)
     tax_data = results.get("tax")
 
-    # Build data table sheets FIRST (other sheets reference them via formulas)
-    _build_pl_data_table(wb, pl_data)
-    _build_bs_data_table(wb, bs_data)
+    # Raw data sheet FIRST — returns label→row mapping for formula linking
+    raw_label_map = {}
+    if raw_file_bytes:
+        raw_label_map = _build_raw_data(wb, raw_file_bytes, raw_filename or "Uploaded File") or {}
+
+    # Build data table sheets (reference Raw Data via live formulas where possible)
+    _build_pl_data_table(wb, pl_data, raw_label_map)
+    _build_bs_data_table(wb, bs_data, raw_label_map)
 
     # Build analysis sheets (formula-driven, reference data tables)
     _build_summary(wb, results, pl_data, bs_data)
@@ -681,10 +735,6 @@ def generate_excel(results: dict, monthly_data: dict = None,
     if monthly_data:
         _build_monthly_sheet(wb, monthly_data)
 
-    # Raw data sheet — user's original file
-    if raw_file_bytes:
-        _build_raw_data(wb, raw_file_bytes, raw_filename or "Uploaded File")
-
     # Remove empty placeholder sheets
     empty = [s.title for s in wb.worksheets if s.max_row <= 1 and s.title != "Executive Summary"]
     for t in empty:
@@ -693,10 +743,6 @@ def generate_excel(results: dict, monthly_data: dict = None,
     # Set tab order: Summary first
     if "Executive Summary" in wb.sheetnames:
         wb.move_sheet("Executive Summary", offset=-len(wb.sheetnames))
-
-    # Add raw source file sheet
-    if raw_file_bytes:
-        _build_raw_data(wb, raw_file_bytes, raw_filename or "source_file")
 
     # Add formula cross-reference sheet
     _build_formulas_sheet(wb)
